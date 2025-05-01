@@ -1,4 +1,8 @@
-# React + Vite
+# MyPrompt Frontend (React + Vite)
+
+This directory contains the frontend of the MyPrompt application, built with React and Vite.
+
+For complete project setup, backend instructions, and overall usage, please refer to the main [../README.md](../README.md) file in the project root.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
