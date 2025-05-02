@@ -37,12 +37,21 @@ To set up and run MyPrompt, follow these steps:
 
 ### Backend Setup
 
-1.  Navigate to the project root directory in your terminal.
-2.  Create a virtual environment using UV:
+1.  Clone the GitHub repo into a directory of your chosing:
+    * On Windows:
+        ```bash
+        git clone https://github.com/AlexJ-StL/MyPrompt.git
+        ```
+2.  Navigate to the project root directory in your terminal.
+    * On Windows:
     ```bash
-    uv venv
+    cd MyPrompt
     ```
-3.  Activate the virtual environment:
+3.  Create a virtual environment using UV:
+    ```bash
+    uv init && uv .venv
+    ```
+4.  Activate the virtual environment:
     *   On Windows:
         ```bash
         .\.venv\Scripts\activate
@@ -51,11 +60,15 @@ To set up and run MyPrompt, follow these steps:
         ```bash
         source ./.venv/bin/activate
         ```
-4.  Install the backend dependencies using UV:
+5.  Install the backend dependencies using UV:
     ```bash
     uv pip install -r requirements.txt
     ```
-5.  Set your Google Gemini API key as an environment variable. It is recommended to use a `.env` file for local development. Create a file named `.env` in the project root and add the following line, replacing `YOUR_GEMINI_API_KEY` with your actual API key:
+    or
+    ```bash
+    uv sync
+    ```
+6.  Set your Google Gemini API key as an environment variable. It is recommended to use a `.env` file for local development. Create a file named `.env` in the project root and add the following line, replacing `YOUR_GEMINI_API_KEY` with your actual API key:
     ```
     GEMINI_API_KEY=YOUR_GEMINI_API_KEY
     ```
