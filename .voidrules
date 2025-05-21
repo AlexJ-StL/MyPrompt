@@ -1,0 +1,28 @@
+# .voidrules
+
+# This file defines custom rules and guidelines for the MyPrompt project
+# within the Void IDE.
+
+# BE SURE TO RUN ALL TERMINAL COMMANDS WITHIN THE UV ENVIRONMENT!!
+# This requires running the command '.venv/Scripts/activate' 
+# upon initialization of a new terminal session. Any dependancy installation
+# must be done within the virtual environment. Additionally, all commands that
+# use those dependancies must be run within the uv virtual enviornment. Please
+# be sure to do everything that you can within the virtual environment by running
+# '.venv/Scripts/activate' when you begin a new terminal session.
+
+# Testing Guidelines:
+# - All new code should be accompanied by relevant unit or integration tests
+#   to ensure functionality and prevent regressions.
+# - Tests for removed or significantly changed code should be updated or
+#   deleted to reflect the current state of the codebase.
+# - Aim for good test coverage, focusing on critical paths and complex logic.
+
+# You can add more specific rules here later, potentially integrating with
+# testing frameworks or linters if Void supports that through this file.
+# For example:
+# lint:
+#   rules:
+#     no-unused-vars: error
+#     prefer-const: warn
+
