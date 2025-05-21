@@ -1,5 +1,43 @@
+# Dev Docs
 ./.development_docs/*
 MyPrompt - Updates.txt
 MyPrompt Directory Tree L3.txt
 MyPrompt Directory Tree L4.txt
 MyPrompt.txt
+
+#Void
+.voidrules
+
+# Node.js
+node_modules/
+dist/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+.venv/
+*.egg-info/
+.env
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Build files
+/build/
+/coverage/
+/htmlcov/
+
+# Miscellaneous
+*.bak
+*.swp
+*.tmp
+
