@@ -4,9 +4,47 @@ from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 import google.generativeai as genai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
 import uuid
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, Tuple
+import requests
+import json
 
 api_bp = Blueprint('api', __name__)
+
+# Define a mapping of supported providers to their API endpoints
+PROVIDER_URLS = {
+    'openai': 'https://api.openai.com/v1/chat/completions',
+    'anthropic': 'https://api.anthropic.com/v1/messages',
+    'google': 'https://generativelanguage.googleapis.com/v1beta/models',  # Base URL, model appended later
+    'openrouter': 'https://openrouter.ai/api/v1/chat/completions',
+    'groq': 'https://api.groq.com/openai/v1/chat/completions',
+    'mistral': 'https://api.mistral.ai/v1/chat/completions',
+    'ollama': 'http://localhost:11434/api/generate',  # Requires local Ollama instance
+    'lmstudio': 'http://localhost:1234/v1/chat/completions'  # Requires local LM Studio instance
+}
+
+# Credentials mapping for environment variables
+PROVIDER_KEYS = {
+    'openai': 'OPENAI_API_KEY',
+    'anthropic': 'ANTHROPIC_API_KEY',
+    'google': 'GOOGLE_API_KEY',
+    'openrouter': 'OPENROUTER_API_KEY',
+    'groq': 'GROQ_API_KEY',
+    'mistral': 'MISTRAL_API_KEY',
+    'ollama': None,  # Typically doesn't require an API key
+    'lmstudio': None  # Typically doesn't require an API key
+}
+
+# Map provider names to model families
+PROVIDER_MODELS = {
+    'openai': ['gpt-4', 'gpt-3.5'],
+    'anthropic': ['claude-3', 'claude-2'],
+    'google': ['gemini-1.5', 'gemini-2.5', 'gemini-flash', 'gemini-pro'],
+    'openrouter': '*',  # Supports many models
+    'groq': ['llama3', 'mixtral', 'gemma'],
+    'mistral': ['mistral-small', 'mistral-medium', 'mistral-large'],
+    'ollama': ['*'],  # Supports any local model
+    'lmstudio': ['*']  # Supports any loaded model
+}
 
 # In-memory storage for PEA conversations
 # Structure: {session_id: List[{'role': str, 'parts': List[{'text': str}]}]}
@@ -77,85 +115,141 @@ def optimize_prompt():
         return jsonify({"error": "No request provided"}), 400
 
     user_request = data.get('request')
+    provider = data.get('provider', 'google')  # Default to Google if not specified
+    model = data.get('model')  # Optional: model name for the provider
 
     if not user_request:
         return jsonify({"error": "No request provided"}), 400
 
-    # Use os.getenv('GEMINI_API_KEY') to get the API key
-    api_key = os.getenv('GEMINI_API_KEY')
+    # Try to get API key from environment
+    provider_upper = provider.upper()
+    api_key = os.getenv(f"{provider_upper}_API_KEY")
+    
+    # Handle OpenAI-compatible providers with OPENAI_API_KEY
+    if not api_key and provider in ['openrouter', 'groq', 'mistral', 'ollama', 'lmstudio']:
+        api_key = os.getenv('OPENAI_API_KEY')
+    
     if not api_key:
-        return jsonify({"error": "GEMINI_API_KEY not set"}), 500
-
-    genai.configure(api_key=api_key)
-
-    # Configure safety settings (example: block dangerous content)
-    safety_settings = {
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-    }
+        return jsonify({"error": f"{provider_upper}_API_KEY or OPENAI_API_KEY not set"}), 500
 
     try:
-        # Initialize the Generative Model
-        model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash-preview-04-17",
-            safety_settings=safety_settings
-        )
+        # OpenAI-compatible API call
+        if provider in ['openai', 'openrouter', 'groq', 'mistral', 'ollama', 'lmstudio']:
+            # Default to GPT-4 if no model specified for OpenAI-compatible
+            model_name = model or "gpt-4" 
+            
+            headers = {
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json'
+            }
+            
+            # Special headers for OpenRouter
+            if provider == 'openrouter':
+                headers['HTTP-Referer'] = 'https://myprompt.alexjekop.com'
+                headers['X-Title'] = 'MyPrompt Assistant'
+            
+            url = {
+                'openai': 'https://api.openai.com/v1/chat/completions',
+                'openrouter': 'https://openrouter.ai/api/v1/chat/completions',
+                'groq': 'https://api.groq.com/openai/v1/chat/completions',
+                'mistral': 'https://api.mistral.ai/v1/chat/completions',
+                'ollama': 'http://localhost:11434/v1/chat/completions',  # Requires local Ollama
+                'lmstudio': 'http://localhost:1234/v1/chat/completions'  # Requires local LM Studio
+            }[provider]
+            
+            payload = {
+                "model": model_name,
+                "messages": [
+                    {"role": "user", "content": f"""
+                    Generate an optimized XML prompt based on the following user request.
+                    The XML structure and optimization approach should be determined by you to best fulfill the user's goal.
+                    Ensure the output is valid XML.
 
-        # Construct the prompt for the LLM
-        # Instruct the LLM to generate an optimized XML prompt based on the user's request.
-        # The LLM should determine the best approach for optimization and the XML structure.
-        llm_prompt = f"""
-        Generate an optimized XML prompt based on the following user request.
-        The XML structure and optimization approach should be determined by you to best fulfill the user's goal.
-        Ensure the output is valid XML.
+                    User Request: {user_request}
 
-        User Request: {user_request}
+                    Provide the optimized prompt within <optimized_prompt></optimized_prompt> tags.
+                    """}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 4000
+            }
 
-        Provide the optimized prompt within <optimized_prompt></optimized_prompt> tags.
-        """
+            response = requests.post(url, headers=headers, json=payload)
+            if response.status_code != 200:
+                return jsonify({"error": f"Provider API error: {response.text}"}), 500
+                
+            optimized_prompt_xml = response.json()["choices"][0]["message"]["content"]
 
-        # Make the API call
-        response = model.generate_content(llm_prompt)
+        # Google API call
+        elif provider == 'google':
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(model_name=model or "gemini-1.5-pro-latest")
+            
+            safety_settings = {
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE
+            }
+            
+            response = model.generate_content(f"""
+            Generate an optimized XML prompt based on the following user request.
+            The XML structure and optimization approach should be determined by you to best fulfill the user's goal.
+            Ensure the output is valid XML.
 
-        # Extract the XML content from the response
-        # Assuming the LLM response contains the XML within the specified tags
-        # This might need more robust parsing depending on actual LLM output
-        optimized_prompt_xml = response.text.strip()
+            User Request: {user_request}
 
+            Provide the optimized prompt within <optimized_prompt></optimized_prompt> tags.
+            """, safety_settings=safety_settings)
+            
+            optimized_prompt_xml = response.text.strip()
+
+        # Anthropic API call
+        elif provider == 'anthropic':
+            headers = {
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01',
+                'Content-Type': 'application/json'
+            }
+            
+            payload = {
+                "model": model or "claude-3-opus-20240229",
+                "messages": [
+                    {"role": "user", "content": f"""
+                    Generate an optimized XML prompt based on the following user request.
+                    The XML structure and optimization approach should be determined by you to best fulfill the user's goal.
+                    Ensure the output is valid XML.
+
+                    User Request: {user_request}
+
+                    Provide the optimized prompt within <optimized_prompt></optimized_prompt> tags.
+                    """}
+                ],
+                "max_tokens": 4000
+            }
+            
+            response = requests.post('https://api.anthropic.com/v1/messages', headers=headers, json=payload, timeout=30)
+            if response.status_code != 200:
+                return jsonify({"error": f"Provider API error: {response.text}"}), 500
+                
+            optimized_prompt_xml = response.json()["content"][0]["text"]
+
+        # Add Cerebras and SambaNova providers here as needed
+        else:
+            return jsonify({"error": "Unsupported provider"}), 400
+
+        # Clean and return the response
+        optimized_prompt_xml = optimized_prompt_xml.replace("```xml", "").replace("```", "").strip()
         return jsonify({"optimized_prompt": optimized_prompt_xml})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @api_bp.errorhandler(BadRequest)
-def handle_bad_request(e):
-    """
-    Catch BadRequest exceptions (like JSON parsing errors)
-    and return a JSON response.
-    """
-    # You could potentially customize the message based on e.description
-    # For this specific case (missing body), the default Werkzeug description might be vague,
-    # so a generic message might be better unless you add more specific checks in the view.
-    # The view's check for `if not data or not data.get("request")` should handle the
-    # "No request provided" logic more explicitly *after* successful parsing.
-    # This handler primarily ensures the *format* is JSON for parsing errors.
-    error_message = "Invalid request format or missing data"
-    # Check if the specific error we expect from the test is being handled
-    # This might be brittle, relying on Werkzeug's internal messages
-    # if hasattr(e, 'description') and 'Failed to decode JSON object' in e.description:
-    #     error_message = "No request provided" # Or keep it generic
-
-    # Let's stick to the error message the *test* currently expects for consistency
-    # This implies the view function's logic for missing/empty 'request' should also
-    # use this message.
+def handle_bad_request(_):
+    """Catch BadRequest exceptions and return consistent error message."""
     return jsonify(error="No request provided"), 400
 
 @api_bp.errorhandler(UnsupportedMediaType)
-def handle_unsupported_media_type(e):
+def handle_unsupported_media_type(_):
     """Catch UnsupportedMediaType exceptions and return JSON."""
-    # Using the message the test expects
     return jsonify(error="Unsupported Media Type: Content-Type must be application/json"), 415
 
 @api_bp.route('/pea/start', methods=['POST'])
