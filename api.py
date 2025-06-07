@@ -130,7 +130,7 @@ def _get_provider_api_key(provider_name: str) -> Optional[str]:
 
     # Specific fallback for OpenAI-compatible providers
     if not api_key and provider_name in ['openrouter', 'groq', 'mistral',
-                                            'ollama', 'lmstudio']:
+                                         'ollama', 'lmstudio']:
         api_key = os.getenv('OPENAI_API_KEY')
     return api_key
 
@@ -157,7 +157,7 @@ def _generate_content_through_api(
         genai.configure(api_key=api_key)
         # Use default model if none provided
         model_instance = genai.GenerativeModel(
-            model_name=model_name or "gemini-2.5-flash"
+            model_name=model_name or "gemini-pro"  # Changed from "gemini-2.5-flash"
         )
         safety_settings = {
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE
@@ -168,11 +168,11 @@ def _generate_content_through_api(
         return response.text.strip()
 
     elif provider in ['openai', 'openrouter', 'groq', 'mistral',
-                        'ollama', 'lmstudio', 'anthropic']:
+                      'ollama', 'lmstudio', 'anthropic']:
         headers = {
             'Content-Type': 'application/json'
         }
-
+        
         # Determine model name based on provider default if not specified
         if not model_name:
             default_models = {
@@ -261,12 +261,16 @@ def optimize_prompt():
 
         # Retrieve API key
         api_key = _get_provider_api_key(provider)
+        # Log the API key value (first 5 chars for security)
+        logging.debug("optimize_prompt: Retrieved API key (first 5 chars): %s",
+                      api_key[:5] if api_key else "None/Empty")
+
         if not api_key:
             logging.error("optimize_prompt: API key not set for provider: {}".format(
                 provider))
             return jsonify(
                 {"error": (f"{provider.upper()}_API_KEY or OPENAI_API_KEY not set "
-                            "in environment")}
+                           "in environment")}
             ), 500
         logging.debug("optimize_prompt: API key retrieved successfully.")
 
@@ -282,7 +286,7 @@ def optimize_prompt():
                                 .replace("```xml", "")
                                 .replace("```", "")
                                 .strip())
-
+        
         logging.debug("optimize_prompt: Returning optimized prompt.")
         return jsonify({"optimized_prompt": optimized_prompt_xml})
 
@@ -300,7 +304,7 @@ def optimize_prompt():
         logging.exception("optimize_prompt: RequestException caught.")
         return jsonify(
             {"error": (f"Failed to communicate with provider API due to network or "
-                        f"request issue: {str(e)}")}
+                       f"request issue: {str(e)}")}
         ), 500
     except KeyError as e:
         logging.exception("optimize_prompt: KeyError caught.")

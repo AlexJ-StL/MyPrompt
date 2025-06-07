@@ -11,6 +11,8 @@ function App() {
   const [finalXmlPrompt, setFinalXmlPrompt] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedProvider, setSelectedProvider] = useState('google'); // Default provider
+  const [selectedModel, setSelectedModel] = useState(''); // Optional: User-selected model
 
   const instructions = {
     standard: {
@@ -49,7 +51,11 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ request: userRequest }),
+        body: JSON.stringify({
+          request: userRequest,
+          provider: selectedProvider,
+          model: selectedModel,
+        }),
       });
 
       if (!response.ok) {
@@ -160,14 +166,46 @@ function App() {
 
       {/* Input Area (Shown in Standard mode or before PEA session starts) */}
       {(mode === 'standard' || (mode === 'pea' && !peaSessionId)) && (
-        <textarea
-          rows="10"
-          cols="50"
-          value={userRequest}
-          onChange={(e) => setUserRequest(e.target.value)}
-          placeholder={mode === 'standard' ? "Enter your complete prompt here..." : "Enter your initial natural language request here to start PEA..."}
-          disabled={loading}
-        />
+        <>
+          <textarea
+            rows="10"
+            cols="50"
+            value={userRequest}
+            onChange={(e) => setUserRequest(e.target.value)}
+            placeholder={mode === 'standard' ? "Enter your complete prompt here..." : "Enter your initial natural language request here to start PEA..."}
+            disabled={loading}
+          />
+          {mode === 'standard' && (
+            <div className="provider-model-selection">
+              <label htmlFor="provider-select">Provider:</label>
+              <select
+                id="provider-select"
+                value={selectedProvider}
+                onChange={(e) => setSelectedProvider(e.target.value)}
+                disabled={loading}
+              >
+                <option value="google">Google</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="groq">Groq</option>
+                <option value="mistral">Mistral</option>
+                <option value="ollama">Ollama</option>
+                <option value="lmstudio">LM Studio</option>
+              </select>
+
+              <label htmlFor="model-input">Model (optional):</label>
+              <input
+                id="model-input"
+                type="text"
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                placeholder="e.g., gpt-4-turbo, claude-3-opus-20240229"
+                disabled={loading}
+              />
+            </div>
+          )}
+        </>
       )}
 
       {/* Action Button (Changes based on mode and PEA session state) */}
