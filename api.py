@@ -7,11 +7,15 @@ assistant (PEA) sessions, as well as handling errors and exceptions.
 import os
 import uuid
 from typing import Dict, List, Optional
+import logging
 import requests
 from flask import Blueprint, request, jsonify
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 import google.generativeai as genai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
+
+# Configure logging for debugging
+logging.basicConfig(level=logging.DEBUG)
 
 api_bp = Blueprint('api', __name__)
 
@@ -126,7 +130,7 @@ def _get_provider_api_key(provider_name: str) -> Optional[str]:
 
     # Specific fallback for OpenAI-compatible providers
     if not api_key and provider_name in ['openrouter', 'groq', 'mistral',
-                                        'ollama', 'lmstudio']:
+                                            'ollama', 'lmstudio']:
         api_key = os.getenv('OPENAI_API_KEY')
     return api_key
 
@@ -236,31 +240,42 @@ def optimize_prompt():
     Returns:
         JSON response containing the optimized prompt in XML or an error message.
     """
+    logging.debug("optimize_prompt: Function entered.")
     try:
         data = request.json
+        logging.debug("optimize_prompt: Request JSON data received: {}".format(data))
         # Initial validation checks
         if not data:
+            logging.error("optimize_prompt: No request body provided.")
             return jsonify({"error": "Request body must be JSON"}), 400
         if 'request' not in data or not data['request']:
+            logging.error("optimize_prompt: Missing or empty 'request' field.")
             return jsonify({"error": "No 'request' field provided in JSON"}), 400
 
         user_request = data['request']
         # Default to Google, ensure lowercase
         provider = data.get('provider', 'google').lower()
         model_name = data.get('model') # Optional: model name for the provider
+        logging.debug("optimize_prompt: Provider: {}, Model: {}".format(
+            provider, model_name))
 
         # Retrieve API key
         api_key = _get_provider_api_key(provider)
         if not api_key:
+            logging.error("optimize_prompt: API key not set for provider: {}".format(
+                provider))
             return jsonify(
                 {"error": (f"{provider.upper()}_API_KEY or OPENAI_API_KEY not set "
                             "in environment")}
             ), 500
+        logging.debug("optimize_prompt: API key retrieved successfully.")
 
         # Call the appropriate external API helper
+        logging.debug("optimize_prompt: Calling _generate_content_through_api...")
         optimized_prompt_xml = _generate_content_through_api(
             provider, model_name, api_key, user_request
         )
+        logging.debug("optimize_prompt: _generate_content_through_api returned successfully.")
 
         # Clean any markdown code block wrappers from the response
         optimized_prompt_xml = (optimized_prompt_xml
@@ -268,229 +283,28 @@ def optimize_prompt():
                                 .replace("```", "")
                                 .strip())
 
+        logging.debug("optimize_prompt: Returning optimized prompt.")
         return jsonify({"optimized_prompt": optimized_prompt_xml})
 
     except ValueError as e:
+        logging.exception("optimize_prompt: ValueError caught.")
         # Catch errors from _generate_content_through_api or other logic
         # 400 for bad request like unsupported provider or invalid model
         return jsonify({"error": str(e)}), 400
     except requests.exceptions.HTTPError as e:
         status_code = e.response.status_code if e.response is not None else 500
+        logging.exception("optimize_prompt: HTTPError caught.")
         return jsonify({"error": f"Provider API returned an error: {e.response.text}"}), \
             status_code
     except requests.RequestException as e:
+        logging.exception("optimize_prompt: RequestException caught.")
         return jsonify(
             {"error": (f"Failed to communicate with provider API due to network or "
                         f"request issue: {str(e)}")}
         ), 500
     except KeyError as e:
+        logging.exception("optimize_prompt: KeyError caught.")
         return jsonify({"error": f"Unexpected API response format: Missing key {str(e)}"}), 500
     except TimeoutError as e:
+        logging.exception("optimize_prompt: TimeoutError caught.")
         return jsonify({"error": f"API call timed out: {str(e)}"}), 500
-
-@api_bp.errorhandler(BadRequest)
-def handle_bad_request(_):
-    """Catch BadRequest exceptions and return consistent error message."""
-    return jsonify(error="No request provided"), 400
-
-@api_bp.errorhandler(UnsupportedMediaType)
-def handle_unsupported_media_type(_):
-    """Catch UnsupportedMediaType exceptions and return JSON."""
-    return jsonify(error="Unsupported Media Type: Content-Type must be application/json"), 415
-
-@api_bp.route('/pea/start', methods=['POST'])
-def start_pea_session():
-    """Initialize a new PEA conversation session."""
-    try:
-        data = request.json
-        if not data or 'initial_request' not in data:
-            return jsonify({"error": "No initial request provided"}), 400
-
-        initial_request = data['initial_request']
-        model = data.get('model', 'gemini-2.5-flash')  # Default model
-
-        # Create new session
-        session_id = initialize_pea_session()
-
-        # Configure Gemini
-        api_key = os.getenv('GEMINI_API_KEY')
-        if not api_key:
-            return jsonify({"error": "GEMINI_API_KEY not set"}), 500
-
-        genai.configure(api_key=api_key)
-
-        # Initialize model with safety settings
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-        }
-
-        model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
-            safety_settings=safety_settings
-        )
-
-        # Combine system prompt and initial user request for the first turn
-        # The model expects alternating user/model roles, so system instructions
-        # are often prepended to the first user message.
-        first_user_turn_content = f"{PEA_SYSTEM_PROMPT}\n\nUser Request: {initial_request}"
-
-        # Add the combined content as the first user message to the conversation history
-        add_message_to_session(session_id, 'user', first_user_turn_content)
-
-        # Get PEA's first response (the model's turn)
-        history = get_session_history(session_id)
-        # history now contains the first user message with system instructions included
-        response = model.generate_content(history)
-
-        # Add PEA's response to history with role 'model'
-        add_message_to_session(session_id, 'model', response.text)
-
-        return jsonify({
-            "session_id": session_id,
-            "response": response.text
-        })
-
-    except requests.RequestException as e:
-        return jsonify({"error": f"Request error: {str(e)}"}), 500
-    except ValueError as e:
-        return jsonify({"error": f"Value error: {str(e)}"}), 500
-    except KeyError as e:
-        return jsonify({"error": f"Key error: {str(e)}"}), 500
-    except TimeoutError as e:
-        return jsonify({"error": f"Timeout error: {str(e)}"}), 500
-
-@api_bp.route('/pea/chat', methods=['POST'])
-def pea_chat():
-    """Handle ongoing PEA conversation."""
-    try:
-        data = request.json
-        if not data or 'session_id' not in data or 'message' not in data:
-            return jsonify({"error": "Missing session_id or message"}), 400
-
-        session_id = data['session_id']
-        user_message = data['message']
-        model = data.get('model', 'gemini-2.5-flash')  # Default model
-
-        # Verify session exists
-        history = get_session_history(session_id)
-        if not history:
-            return jsonify({"error": "Invalid session ID"}), 400
-
-        # Add user message to history
-        add_message_to_session(session_id, 'user', user_message)
-
-        # Configure Gemini
-        api_key = os.getenv('GEMINI_API_KEY')
-        if not api_key:
-            return jsonify({"error": "GEMINI_API_KEY not set"}), 500
-
-        genai.configure(api_key=api_key)
-
-        # Initialize model with safety settings
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-        }
-
-        model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
-            safety_settings=safety_settings
-        )
-
-
-        # Get PEA's response
-        history = get_session_history(session_id)
-        # The history now contains user messages in the correct format
-        response = model.generate_content(history)
-
-        # Add PEA's response to history with role 'model'
-        add_message_to_session(session_id, 'model', response.text)
-
-        return jsonify({"response": response.text})
-
-    except requests.RequestException as e:
-        return jsonify({"error": f"Request error: {str(e)}"}), 500
-    except ValueError as e:
-        return jsonify({"error": f"Value error: {str(e)}"}), 500
-    except KeyError as e:
-        return jsonify({"error": f"Key error: {str(e)}"}), 500
-    except TimeoutError as e:
-        return jsonify({"error": f"Timeout error: {str(e)}"}), 500
-
-@api_bp.route('/pea/finalize', methods=['POST'])
-def finalize_prompt():
-    """
-    Finalizes the prompt generation process for a given session.
-
-    This endpoint takes a JSON payload with a 'session_id' to identify the session.
-    It verifies the session, configures the Gemini API, and generates a final optimized prompt
-    in XML format based on the conversation history.
-
-    Returns:
-        JSON response containing the final optimized prompt or an error message.
-    """
-    try:
-        data = request.json
-        if not data or 'session_id' not in data:
-            return jsonify({"error": "No session_id provided"}), 400
-
-        session_id = data['session_id']
-
-        # Verify session exists
-        history = get_session_history(session_id)
-        if not history:
-            return jsonify({"error": "Invalid session ID"}), 400
-
-        # Configure Gemini
-        api_key = os.getenv('GEMINI_API_KEY')
-        if not api_key:
-            return jsonify({"error": "GEMINI_API_KEY not set"}), 500
-
-        genai.configure(api_key=api_key)
-
-        # Initialize model with safety settings
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-        }
-
-        model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
-            safety_settings=safety_settings
-        )
-
-        # Add finalization request to history
-        finalize_instruction = (
-            """Based on our conversation, please generate the final optimized prompt in XML format.
-            The XML should capture all the key information we've discussed and be structured to
-            effectively achieve the user's goal."""
-        )
-
-        add_message_to_session(session_id, 'user', finalize_instruction)
-        # Get final XML prompt
-        history = get_session_history(session_id)
-        # The history now contains user and model messages in the correct format
-        response = model.generate_content(history)
-
-        # Clean up the session
-        clear_session(session_id)
-
-        return jsonify({
-            "final_prompt": response.text
-        })
-
-    except requests.RequestException as e:
-        return jsonify({"error": f"Request error: {str(e)}"}), 500
-    except ValueError as e:
-        return jsonify({"error": f"Value error: {str(e)}"}), 500
-    except KeyError as e:
-        return jsonify({"error": f"Key error: {str(e)}"}), 500
-    except TimeoutError as e:
-        return jsonify({"error": f"Timeout error: {str(e)}"}), 500
