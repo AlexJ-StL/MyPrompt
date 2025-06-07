@@ -14,7 +14,7 @@ dist/
 *.log
 
 # Python
-__pycache__/
+__pycache__/*
 *.py[cod]
 *.pyo
 *.pyd
