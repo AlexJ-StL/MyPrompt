@@ -116,151 +116,177 @@ def clear_session(session_id: str) -> None:
     if session_id in pea_conversations:
         del pea_conversations[session_id]
 
+def _get_provider_api_key(provider_name: str) -> Optional[str]:
+    """
+    Retrieves the API key for a given provider from environment variables.
+    Handles fallback to OPENAI_API_KEY for OpenAI-compatible providers.
+    """
+    api_key_env_var = f"{provider_name.upper()}_API_KEY"
+    api_key = os.getenv(api_key_env_var)
+
+    # Specific fallback for OpenAI-compatible providers
+    if not api_key and provider_name in ['openrouter', 'groq', 'mistral',
+                                        'ollama', 'lmstudio']:
+        api_key = os.getenv('OPENAI_API_KEY')
+    return api_key
+
+def _generate_content_through_api(
+    provider: str, model_name: Optional[str], api_key: str, user_request: str
+) -> str:
+    """
+    Handles generating content through the appropriate API based on the provider.
+    This function consolidates the API call logic for different LLM providers.
+    """
+    final_prompt_template = """
+    Generate an optimized XML prompt based on the following user request.
+    The XML structure and optimization approach should be determined
+    by you to best fulfill the user's goal.
+    Ensure the output is valid XML.
+
+    User Request: {user_request}
+
+    Provide the optimized prompt within <optimized_prompt></optimized_prompt> tags.
+    """
+    formatted_user_request = final_prompt_template.format(user_request=user_request).strip()
+
+    if provider == 'google':
+        genai.configure(api_key=api_key)
+        # Use default model if none provided
+        model_instance = genai.GenerativeModel(
+            model_name=model_name or "gemini-2.5-flash"
+        )
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE
+        }
+        response = model_instance.generate_content(
+            formatted_user_request, safety_settings=safety_settings
+        )
+        return response.text.strip()
+
+    elif provider in ['openai', 'openrouter', 'groq', 'mistral',
+                        'ollama', 'lmstudio', 'anthropic']:
+        headers = {
+            'Content-Type': 'application/json'
+        }
+
+        # Determine model name based on provider default if not specified
+        if not model_name:
+            default_models = {
+                'openai': "gpt-4",
+                'anthropic': "claude-3-opus-20240229",
+                'groq': "llama3-8b-8192",
+                'mistral': "mistral-large-latest",
+                'openrouter': "google/gemini-pro",
+                'ollama': "llama2",
+                'lmstudio': "llama2",
+            }
+            model_name = default_models.get(provider, "default-model")
+
+        # Add API key header based on provider
+        if provider == 'anthropic':
+            headers['x-api-key'] = api_key
+            headers['anthropic-version'] = '2023-06-01'
+        else: # OpenAI-compatible
+            headers['Authorization'] = f'Bearer {api_key}'
+
+        # Special headers for OpenRouter
+        if provider == 'openrouter':
+            headers['HTTP-Referer'] = 'https://myprompt.alexjekop.com'
+            headers['X-Title'] = 'MyPrompt Assistant'
+
+        url = PROVIDER_URLS.get(provider)
+        if not url:
+            raise ValueError(f"Unknown or unsupported provider URL for {provider}.")
+
+        messages = [{"role": "user", "content": formatted_user_request}]
+
+        payload = {
+            "model": model_name,
+            "messages": messages,
+            "max_tokens": 4000
+        }
+        # Ollama and LM Studio typically don't use 'temperature'
+        # in /v1/chat/completions
+        if provider not in ['ollama', 'lmstudio']:
+            payload["temperature"] = 0.7
+
+
+        # Use a general timeout for requests, can be adjusted per provider
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+
+        if provider == 'anthropic':
+            return response.json()["content"][0]["text"].strip()
+        else: # OpenAI-compatible structure
+            return response.json()["choices"][0]["message"]["content"].strip()
+    else:
+        raise ValueError(f"Unsupported provider: {provider}")
+
+
 @api_bp.route('/optimize-prompt', methods=['POST'])
 def optimize_prompt():
-    data = request.json
-    if not data or 'request' not in data:
-        return jsonify({"error": "No request provided"}), 400
+    """
+    Optimizes a user's prompt by sending it to a selected language model provider.
 
-    user_request = data.get('request')
-    provider = data.get('provider', 'google')  # Default to Google if not specified
-    model = data.get('model')  # Optional: model name for the provider
+    This endpoint accepts a JSON payload with a 'request' (the user's prompt)
+    and optional 'provider' (default: 'google') and 'model' parameters.
+    It retrieves the necessary API key, dispatches the request to the
+    appropriate LLM provider, and returns the optimized prompt in XML format.
 
-    if not user_request:
-        return jsonify({"error": "No request provided"}), 400
-
-    # Try to get API key from environment
-    provider_upper = provider.upper()
-    api_key = os.getenv(f"{provider_upper}_API_KEY")
-
-    # Handle OpenAI-compatible providers with OPENAI_API_KEY
-    if not api_key and provider in ['openrouter', 'groq', 'mistral', 'ollama', 'lmstudio']:
-        api_key = os.getenv('OPENAI_API_KEY')
-
-    if not api_key:
-        return jsonify({"error": f"{provider_upper}_API_KEY or OPENAI_API_KEY not set"}), 500
-
+    Returns:
+        JSON response containing the optimized prompt in XML or an error message.
+    """
     try:
-        # OpenAI-compatible API call
-        if provider in ['openai', 'openrouter', 'groq', 'mistral', 'ollama', 'lmstudio']:
-            # Default to GPT-4 if no model specified for OpenAI-compatible
-            model_name = model or "gpt-4"
+        data = request.json
+        # Initial validation checks
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), 400
+        if 'request' not in data or not data['request']:
+            return jsonify({"error": "No 'request' field provided in JSON"}), 400
 
-            headers = {
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json'
-            }
+        user_request = data['request']
+        # Default to Google, ensure lowercase
+        provider = data.get('provider', 'google').lower()
+        model_name = data.get('model') # Optional: model name for the provider
 
-            # Special headers for OpenRouter
-            if provider == 'openrouter':
-                headers['HTTP-Referer'] = 'https://myprompt.alexjekop.com'
-                headers['X-Title'] = 'MyPrompt Assistant'
+        # Retrieve API key
+        api_key = _get_provider_api_key(provider)
+        if not api_key:
+            return jsonify(
+                {"error": (f"{provider.upper()}_API_KEY or OPENAI_API_KEY not set "
+                            "in environment")}
+            ), 500
 
-            url = {
-                'openai': 'https://api.openai.com/v1/chat/completions',
-                'openrouter': 'https://openrouter.ai/api/v1/chat/completions',
-                'groq': 'https://api.groq.com/openai/v1/chat/completions',
-                'mistral': 'https://api.mistral.ai/v1/chat/completions',
-                'ollama': 'http://localhost:11434/v1/chat/completions',  # Requires local Ollama
-                'lmstudio': 'http://localhost:1234/v1/chat/completions'  # Requires local LM Studio
-            }[provider]
+        # Call the appropriate external API helper
+        optimized_prompt_xml = _generate_content_through_api(
+            provider, model_name, api_key, user_request
+        )
 
-            payload = {
-                "model": model_name,
-                "messages": [
-                    {"role": "user", "content": f"""
-                    Generate an optimized XML prompt based on the following user request.
-                    The XML structure and optimization approach should be determined
-                    by you to best fulfill the user's goal.
-                    Ensure the output is valid XML.
+        # Clean any markdown code block wrappers from the response
+        optimized_prompt_xml = (optimized_prompt_xml
+                                .replace("```xml", "")
+                                .replace("```", "")
+                                .strip())
 
-                    User Request: {user_request}
-
-                    Provide the optimized prompt within <optimized_prompt></optimized_prompt> tags.
-                    """}
-                ],
-                "temperature": 0.7,
-                "max_tokens": 4000
-            }
-
-            response = requests.post(url, headers=headers, json=payload, timeout=20)
-            if response.status_code != 200:
-                return jsonify({"error": f"Provider API error: {response.text}"}), 500
-
-            optimized_prompt_xml = response.json()["choices"][0]["message"]["content"]
-
-        # Google API call
-        elif provider == 'google':
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(model_name=model or "gemini-2.5-flash")
-
-            safety_settings = {
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE
-            }
-
-            response = model.generate_content(f"""
-            Generate an optimized XML prompt based on the following user request.
-            The XML structure and optimization approach should be determined by you to best fulfill the user's goal.
-            Ensure the output is valid XML.
-
-            User Request: {user_request}
-
-            Provide the optimized prompt within <optimized_prompt></optimized_prompt> tags.
-            """, safety_settings=safety_settings)
-
-            optimized_prompt_xml = response.text.strip()
-
-        # Anthropic API call
-        elif provider == 'anthropic':
-            headers = {
-                'x-api-key': api_key,
-                'anthropic-version': '2023-06-01',
-                'Content-Type': 'application/json'
-            }
-
-            payload = {
-                "model": model or "claude-3-opus-20240229",
-                "messages": [
-                    {"role": "user", "content": f"""
-                    Generate an optimized XML prompt based on the following user request.
-                    The XML structure and optimization approach should be determined by you to best fulfill the user's goal.
-                    Ensure the output is valid XML.
-
-                    User Request: {user_request}
-
-                    Provide the optimized prompt within <optimized_prompt></optimized_prompt> tags.
-                    """}
-                ],
-                "max_tokens": 4000
-            }
-
-            response = requests.post(
-                'https://api.anthropic.com/v1/messages',
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
-            if response.status_code != 200:
-                return jsonify({"error": f"Provider API error: {response.text}"}), 500
-
-            optimized_prompt_xml = response.json()["content"][0]["text"]
-
-        # Add Cerebras and SambaNova providers here as needed
-        else:
-            return jsonify({"error": "Unsupported provider"}), 400
-
-        # Clean and return the response
-        optimized_prompt_xml = optimized_prompt_xml.replace("```xml", "").replace("```", "").strip()
         return jsonify({"optimized_prompt": optimized_prompt_xml})
 
-    except requests.RequestException as e:
-        return jsonify({"error": f"Request error: {str(e)}"}), 500
     except ValueError as e:
-        return jsonify({"error": f"Value error: {str(e)}"}), 500
+        # Catch errors from _generate_content_through_api or other logic
+        # 400 for bad request like unsupported provider or invalid model
+        return jsonify({"error": str(e)}), 400
+    except requests.exceptions.HTTPError as e:
+        status_code = e.response.status_code if e.response is not None else 500
+        return jsonify({"error": f"Provider API returned an error: {e.response.text}"}), \
+            status_code
+    except requests.RequestException as e:
+        return jsonify(
+            {"error": (f"Failed to communicate with provider API due to network or "
+                        f"request issue: {str(e)}")}
+        ), 500
     except KeyError as e:
-        return jsonify({"error": f"Key error: {str(e)}"}), 500
+        return jsonify({"error": f"Unexpected API response format: Missing key {str(e)}"}), 500
     except TimeoutError as e:
-        return jsonify({"error": f"Timeout error: {str(e)}"}), 500
+        return jsonify({"error": f"API call timed out: {str(e)}"}), 500
 
 @api_bp.errorhandler(BadRequest)
 def handle_bad_request(_):
