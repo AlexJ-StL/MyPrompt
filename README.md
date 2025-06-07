@@ -73,10 +73,6 @@ To set up and run MyPrompt, follow these steps:
         ```
 5.  Install the backend dependencies using UV:
     ```bash
-    uv pip install -r requirements.txt
-    ```
-    or
-    ```bash
     uv sync
     ```
 6.  **API Key Configuration:**
