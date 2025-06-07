@@ -1,12 +1,17 @@
-from flask import Blueprint, request, jsonify
+"""
+This module provides API endpoints for optimizing prompts using various language models.
+It includes functionality for starting, continuing, and finalizing prompt engineering
+assistant (PEA) sessions, as well as handling errors and exceptions.
+"""
+
 import os
+import uuid
+from typing import Dict, List, Optional
+import requests
+from flask import Blueprint, request, jsonify
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 import google.generativeai as genai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
-import uuid
-from typing import Dict, List, Optional, Any, Tuple
-import requests
-import json
 
 api_bp = Blueprint('api', __name__)
 
@@ -14,36 +19,39 @@ api_bp = Blueprint('api', __name__)
 PROVIDER_URLS = {
     'openai': 'https://api.openai.com/v1/chat/completions',
     'anthropic': 'https://api.anthropic.com/v1/messages',
-    'google': 'https://generativelanguage.googleapis.com/v1beta/models',  # Base URL, model appended later
+    # Base URL, model appended later
+    'google': 'https://generativelanguage.googleapis.com/v1beta/models',
     'openrouter': 'https://openrouter.ai/api/v1/chat/completions',
     'groq': 'https://api.groq.com/openai/v1/chat/completions',
     'mistral': 'https://api.mistral.ai/v1/chat/completions',
-    'ollama': 'http://localhost:11434/api/generate',  # Requires local Ollama instance
-    'lmstudio': 'http://localhost:1234/v1/chat/completions'  # Requires local LM Studio instance
+    # Requires local Ollama instance
+    'ollama': 'http://localhost:11434/api/generate',
+    # Requires local LM Studio instance
+    'lmstudio': 'http://localhost:1234/v1/chat/completions'
 }
 
 # Credentials mapping for environment variables
 PROVIDER_KEYS = {
     'openai': 'OPENAI_API_KEY',
     'anthropic': 'ANTHROPIC_API_KEY',
-    'google': 'GOOGLE_API_KEY',
+    'gemini': 'GEMINI_API_KEY',
     'openrouter': 'OPENROUTER_API_KEY',
     'groq': 'GROQ_API_KEY',
-    'mistral': 'MISTRAL_API_KEY',
     'ollama': None,  # Typically doesn't require an API key
     'lmstudio': None  # Typically doesn't require an API key
 }
 
 # Map provider names to model families
 PROVIDER_MODELS = {
-    'openai': ['gpt-4', 'gpt-3.5'],
-    'anthropic': ['claude-3', 'claude-2'],
-    'google': ['gemini-1.5', 'gemini-2.5', 'gemini-flash', 'gemini-pro'],
-    'openrouter': '*',  # Supports many models
-    'groq': ['llama3', 'mixtral', 'gemma'],
-    'mistral': ['mistral-small', 'mistral-medium', 'mistral-large'],
-    'ollama': ['*'],  # Supports any local model
-    'lmstudio': ['*']  # Supports any loaded model
+    #User will need to define model as versions regularly and rapidly update.
+    'openai': ['*'],
+    'anthropic': ['*'],
+    'gemini': ['*'],
+    'openrouter': '*',
+    'groq': ['*'],
+    'mistral': ['*'],
+    'ollama': ['*'],
+    'lmstudio': ['*']
 }
 
 # In-memory storage for PEA conversations
@@ -124,11 +132,11 @@ def optimize_prompt():
     # Try to get API key from environment
     provider_upper = provider.upper()
     api_key = os.getenv(f"{provider_upper}_API_KEY")
-    
+
     # Handle OpenAI-compatible providers with OPENAI_API_KEY
     if not api_key and provider in ['openrouter', 'groq', 'mistral', 'ollama', 'lmstudio']:
         api_key = os.getenv('OPENAI_API_KEY')
-    
+
     if not api_key:
         return jsonify({"error": f"{provider_upper}_API_KEY or OPENAI_API_KEY not set"}), 500
 
@@ -136,18 +144,18 @@ def optimize_prompt():
         # OpenAI-compatible API call
         if provider in ['openai', 'openrouter', 'groq', 'mistral', 'ollama', 'lmstudio']:
             # Default to GPT-4 if no model specified for OpenAI-compatible
-            model_name = model or "gpt-4" 
-            
+            model_name = model or "gpt-4"
+
             headers = {
                 'Authorization': f'Bearer {api_key}',
                 'Content-Type': 'application/json'
             }
-            
+
             # Special headers for OpenRouter
             if provider == 'openrouter':
                 headers['HTTP-Referer'] = 'https://myprompt.alexjekop.com'
                 headers['X-Title'] = 'MyPrompt Assistant'
-            
+
             url = {
                 'openai': 'https://api.openai.com/v1/chat/completions',
                 'openrouter': 'https://openrouter.ai/api/v1/chat/completions',
@@ -156,13 +164,14 @@ def optimize_prompt():
                 'ollama': 'http://localhost:11434/v1/chat/completions',  # Requires local Ollama
                 'lmstudio': 'http://localhost:1234/v1/chat/completions'  # Requires local LM Studio
             }[provider]
-            
+
             payload = {
                 "model": model_name,
                 "messages": [
                     {"role": "user", "content": f"""
                     Generate an optimized XML prompt based on the following user request.
-                    The XML structure and optimization approach should be determined by you to best fulfill the user's goal.
+                    The XML structure and optimization approach should be determined
+                    by you to best fulfill the user's goal.
                     Ensure the output is valid XML.
 
                     User Request: {user_request}
@@ -174,21 +183,21 @@ def optimize_prompt():
                 "max_tokens": 4000
             }
 
-            response = requests.post(url, headers=headers, json=payload)
+            response = requests.post(url, headers=headers, json=payload, timeout=20)
             if response.status_code != 200:
                 return jsonify({"error": f"Provider API error: {response.text}"}), 500
-                
+
             optimized_prompt_xml = response.json()["choices"][0]["message"]["content"]
 
         # Google API call
         elif provider == 'google':
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(model_name=model or "gemini-1.5-pro-latest")
-            
+            model = genai.GenerativeModel(model_name=model or "gemini-2.5-flash")
+
             safety_settings = {
                 HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE
             }
-            
+
             response = model.generate_content(f"""
             Generate an optimized XML prompt based on the following user request.
             The XML structure and optimization approach should be determined by you to best fulfill the user's goal.
@@ -198,7 +207,7 @@ def optimize_prompt():
 
             Provide the optimized prompt within <optimized_prompt></optimized_prompt> tags.
             """, safety_settings=safety_settings)
-            
+
             optimized_prompt_xml = response.text.strip()
 
         # Anthropic API call
@@ -208,7 +217,7 @@ def optimize_prompt():
                 'anthropic-version': '2023-06-01',
                 'Content-Type': 'application/json'
             }
-            
+
             payload = {
                 "model": model or "claude-3-opus-20240229",
                 "messages": [
@@ -224,11 +233,16 @@ def optimize_prompt():
                 ],
                 "max_tokens": 4000
             }
-            
-            response = requests.post('https://api.anthropic.com/v1/messages', headers=headers, json=payload, timeout=30)
+
+            response = requests.post(
+                'https://api.anthropic.com/v1/messages',
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
             if response.status_code != 200:
                 return jsonify({"error": f"Provider API error: {response.text}"}), 500
-                
+
             optimized_prompt_xml = response.json()["content"][0]["text"]
 
         # Add Cerebras and SambaNova providers here as needed
@@ -239,8 +253,14 @@ def optimize_prompt():
         optimized_prompt_xml = optimized_prompt_xml.replace("```xml", "").replace("```", "").strip()
         return jsonify({"optimized_prompt": optimized_prompt_xml})
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except requests.RequestException as e:
+        return jsonify({"error": f"Request error: {str(e)}"}), 500
+    except ValueError as e:
+        return jsonify({"error": f"Value error: {str(e)}"}), 500
+    except KeyError as e:
+        return jsonify({"error": f"Key error: {str(e)}"}), 500
+    except TimeoutError as e:
+        return jsonify({"error": f"Timeout error: {str(e)}"}), 500
 
 @api_bp.errorhandler(BadRequest)
 def handle_bad_request(_):
@@ -261,17 +281,18 @@ def start_pea_session():
             return jsonify({"error": "No initial request provided"}), 400
 
         initial_request = data['initial_request']
-        
+        model = data.get('model', 'gemini-2.5-flash')  # Default model
+
         # Create new session
         session_id = initialize_pea_session()
-        
+
         # Configure Gemini
         api_key = os.getenv('GEMINI_API_KEY')
         if not api_key:
             return jsonify({"error": "GEMINI_API_KEY not set"}), 500
-        
+
         genai.configure(api_key=api_key)
-        
+
         # Initialize model with safety settings
         safety_settings = {
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -279,9 +300,9 @@ def start_pea_session():
             HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
         }
-        
+
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash-preview-04-17",
+            model_name="gemini-2.5-flash",
             safety_settings=safety_settings
         )
 
@@ -289,25 +310,31 @@ def start_pea_session():
         # The model expects alternating user/model roles, so system instructions
         # are often prepended to the first user message.
         first_user_turn_content = f"{PEA_SYSTEM_PROMPT}\n\nUser Request: {initial_request}"
-        
+
         # Add the combined content as the first user message to the conversation history
         add_message_to_session(session_id, 'user', first_user_turn_content)
-        
+
         # Get PEA's first response (the model's turn)
         history = get_session_history(session_id)
         # history now contains the first user message with system instructions included
         response = model.generate_content(history)
-        
+
         # Add PEA's response to history with role 'model'
         add_message_to_session(session_id, 'model', response.text)
-        
+
         return jsonify({
             "session_id": session_id,
             "response": response.text
         })
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except requests.RequestException as e:
+        return jsonify({"error": f"Request error: {str(e)}"}), 500
+    except ValueError as e:
+        return jsonify({"error": f"Value error: {str(e)}"}), 500
+    except KeyError as e:
+        return jsonify({"error": f"Key error: {str(e)}"}), 500
+    except TimeoutError as e:
+        return jsonify({"error": f"Timeout error: {str(e)}"}), 500
 
 @api_bp.route('/pea/chat', methods=['POST'])
 def pea_chat():
@@ -319,22 +346,23 @@ def pea_chat():
 
         session_id = data['session_id']
         user_message = data['message']
-        
+        model = data.get('model', 'gemini-2.5-flash')  # Default model
+
         # Verify session exists
         history = get_session_history(session_id)
         if not history:
             return jsonify({"error": "Invalid session ID"}), 400
-        
+
         # Add user message to history
         add_message_to_session(session_id, 'user', user_message)
-        
+
         # Configure Gemini
         api_key = os.getenv('GEMINI_API_KEY')
         if not api_key:
             return jsonify({"error": "GEMINI_API_KEY not set"}), 500
-        
+
         genai.configure(api_key=api_key)
-        
+
         # Initialize model with safety settings
         safety_settings = {
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -342,9 +370,9 @@ def pea_chat():
             HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
         }
-        
+
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash-preview-04-17",
+            model_name="gemini-2.5-flash",
             safety_settings=safety_settings
         )
 
@@ -353,36 +381,52 @@ def pea_chat():
         history = get_session_history(session_id)
         # The history now contains user messages in the correct format
         response = model.generate_content(history)
-        
+
         # Add PEA's response to history with role 'model'
         add_message_to_session(session_id, 'model', response.text)
-        
+
         return jsonify({"response": response.text})
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except requests.RequestException as e:
+        return jsonify({"error": f"Request error: {str(e)}"}), 500
+    except ValueError as e:
+        return jsonify({"error": f"Value error: {str(e)}"}), 500
+    except KeyError as e:
+        return jsonify({"error": f"Key error: {str(e)}"}), 500
+    except TimeoutError as e:
+        return jsonify({"error": f"Timeout error: {str(e)}"}), 500
 
 @api_bp.route('/pea/finalize', methods=['POST'])
 def finalize_prompt():
+    """
+    Finalizes the prompt generation process for a given session.
+
+    This endpoint takes a JSON payload with a 'session_id' to identify the session.
+    It verifies the session, configures the Gemini API, and generates a final optimized prompt
+    in XML format based on the conversation history.
+
+    Returns:
+        JSON response containing the final optimized prompt or an error message.
+    """
     try:
         data = request.json
         if not data or 'session_id' not in data:
             return jsonify({"error": "No session_id provided"}), 400
 
         session_id = data['session_id']
-        
+
         # Verify session exists
         history = get_session_history(session_id)
         if not history:
             return jsonify({"error": "Invalid session ID"}), 400
-        
+
         # Configure Gemini
         api_key = os.getenv('GEMINI_API_KEY')
         if not api_key:
             return jsonify({"error": "GEMINI_API_KEY not set"}), 500
-        
+
         genai.configure(api_key=api_key)
-        
+
         # Initialize model with safety settings
         safety_settings = {
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
@@ -390,29 +434,37 @@ def finalize_prompt():
             HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
         }
-        
+
         model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash-preview-04-17",
+            model_name="gemini-2.5-flash",
             safety_settings=safety_settings
         )
 
         # Add finalization request to history
-        finalize_instruction = """Based on our conversation, please generate the final optimized prompt in XML format. 
-        The XML should capture all the key information we've discussed and be structured to effectively achieve the user's goal."""
+        finalize_instruction = (
+            """Based on our conversation, please generate the final optimized prompt in XML format.
+            The XML should capture all the key information we've discussed and be structured to
+            effectively achieve the user's goal."""
+        )
+
         add_message_to_session(session_id, 'user', finalize_instruction)
         # Get final XML prompt
         history = get_session_history(session_id)
         # The history now contains user and model messages in the correct format
         response = model.generate_content(history)
-        
+
         # Clean up the session
         clear_session(session_id)
-        
+
         return jsonify({
             "final_prompt": response.text
         })
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# TODO: Add unit tests for these API endpoints
+    except requests.RequestException as e:
+        return jsonify({"error": f"Request error: {str(e)}"}), 500
+    except ValueError as e:
+        return jsonify({"error": f"Value error: {str(e)}"}), 500
+    except KeyError as e:
+        return jsonify({"error": f"Key error: {str(e)}"}), 500
+    except TimeoutError as e:
+        return jsonify({"error": f"Timeout error: {str(e)}"}), 500
