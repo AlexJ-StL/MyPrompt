@@ -1,16 +1,14 @@
 {
-    "markdown.validate.enabled": true,
-    "python.analysis.autoImportCompletions": true,
-    "python.testing.unittestArgs": [
-        "-v",
-        "-s",
-        "./test_early_api",
-        "-p",
-        "test_*.py"
-    ],
-    "python.testing.pytestEnabled": true,
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestArgs": [
-        "test_early_api"
-    ]
+  "markdown.validate.enabled": true,
+  "python.analysis.autoImportCompletions": true,
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "./test_early_api",
+    "-p",
+    "test_*.py"
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": ["test_api"]
 }
