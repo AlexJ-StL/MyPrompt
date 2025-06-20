@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-function PEAChat({ sessionId, initialMessage, onFinalize }) {
+function PEAChat({ sessionId, initialMessage, onFinalize, selectedProvider, selectedModel }) {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -30,7 +30,12 @@ const handleSendMessage = async () => {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ session_id: sessionId, message: newUserMessage.content }),
+        body: JSON.stringify({
+            session_id: sessionId,
+            message: newUserMessage.content,
+            provider: selectedProvider,
+            model: selectedModel,
+        }),
         });
 
     if (!response.ok) {

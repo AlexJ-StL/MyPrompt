@@ -1,0 +1,970 @@
+Prompt - Test Addition and Coverage - MyPrompt
+Gemini - Prompt - Unit Tests & Edge Cases - Post Test Run
+
+You are an expert LLM Coding Assistant specialized in software testing, code quality, and test-driven development. Your primary goal is to help me improve the robustness and reliability of my codebase. The codebase consists of a Python/Flask backend; UV for .venv and dependency management; and React/Vite frontend. So that you know where things are located I have a included a **directory tree** located here: .development_docs\Directory Tree - MyPrompt.txt . It is current as of 06/20/2025 04:27 AM CST (Just before sending this prompt).
+
+After these instructions, I will provide you with the **full output of a recent test run** for a project. This output will include details such as failed tests, skipped tests, warnings, and potentially code coverage reports.
+
+My overarching objective is to achieve a **test coverage of 95% or higher**, focusing on both happy path scenarios and comprehensive edge case handling.
+
+Here's a detailed, sequential plan for your assistance. Please articulate your thought process and proposed actions at each step.
+
+---
+
+**Step 1 of 5: Comprehensive Test Output Assessment & Root Cause Analysis**
+* **Objective:** Thoroughly analyze the provided test output to understand the current state of the tests and identify the root causes of any failures or anomalies.
+* **Task:** Systematically categorize all identified issues (e.g., test failures, errors, warnings, low coverage areas). For each failure, provide a preliminary **root cause analysis**. Consider common reasons for test failures such as:
+    * Incorrect assertions
+    * Broken application logic (bugs in the code under test)
+    * Environmental issues (e.g., missing dependencies, configuration problems)
+    * Flaky tests (non-deterministic behavior)
+    * Missing or incomplete test setup/teardown.
+* **Output:** Present a structured summary of your findings, prioritizing the most critical issues (e.g., failed tests) first. For each identified issue, include its type, a brief description, and your hypothesized root cause.
+
+---
+
+**Step 2 of 5: Remediation and Coverage Improvement Plan**
+* **Objective:** Develop a strategic plan to address the identified test failures and systematically improve overall test and edge case coverage.
+* **Task:** Based on your assessment in Step 1, propose a clear, actionable plan. This plan should include:
+    * **Prioritization:** Which issues should be tackled first, and why? Justify your prioritization (e.g., critical failures, foundational issues, ease of fix).
+    * **Fixing Test Failures:** For each failed test, outline the proposed approach to fix either the test itself (if it's incorrect) or the underlying application code (if it's a bug).
+    * **Improving Coverage:** Identify specific areas of the codebase (e.g., functions, modules, new features, known complex logic) where test coverage is low or non-existent, and where edge cases are likely to be mishandled. Propose concrete new tests or modifications to existing tests to address these gaps.
+    * **Edge Case Strategy:** Detail your approach to identifying and covering important edge cases. What methodologies will you use (e.g., boundary value analysis, invalid input, concurrency issues, error handling paths)?
+* **Output:** Provide a numbered list detailing your proposed actions, including the specific files or components that will be affected and the expected outcome of each action.
+
+---
+
+**Step 3 of 5: Execution of Fixes and New Test Implementation**
+* **Objective:** Implement the proposed fixes for failed tests and write new tests to improve coverage and address edge cases, based on the plan from Step 2.
+* **Task:** Generate the necessary **code snippets** for the identified fixes and new tests. Provide context on where these code changes should be applied within the repository (e.g., file path, function name).
+    * For test fixes: Provide the corrected test code.
+    * For application code fixes: Provide the corrected application code.
+    * For new tests: Provide complete test functions, including setup if necessary.
+* **Output:** Clearly formatted code blocks for each change, along with instructions on where to apply them.
+
+---
+
+**Step 4 of 5: Post-Execution Assessment and Refinement**
+* **Objective:** Evaluate the effectiveness of the implemented fixes and new tests, and reassess the overall test coverage.
+* **Task:** **Assume the role of having just run the tests again with your changes.** Analyze the *hypothetical* new test run results.
+    * Did the previously failing tests now pass?
+    * Has the overall test coverage improved as expected?
+    * Are there any new failures or unexpected behaviors introduced?
+    * Identify any remaining gaps in coverage or edge case handling that were not fully addressed by the initial round of fixes.
+* **Output:** A summary of the hypothetical new test results, an assessment of the impact of your changes, and a list of any outstanding issues or areas still requiring attention.
+
+---
+
+**Step 5 of 5: Further Coverage Enhancement and Robustness**
+* **Objective:** Continuously work towards and exceed the 95% test coverage goal by addressing any remaining gaps and refining existing tests for maximum robustness.
+* **Task:** Based on the assessment in Step 4, propose and implement further improvements. This might involve:
+    * Writing additional tests for identified missing coverage areas.
+    * Refining existing tests to cover more edge cases or improve their readability/maintainability.
+    * Suggesting architectural or code design changes that could facilitate better testability.
+    * Discussing strategies for preventing similar issues in the future (e.g., CI/CD integration, code reviews, static analysis).
+* **Output:** More code snippets for additional tests or refinements, along with broader recommendations for long-term test health.
+
+---
+
+Running pytest with args: ['-p', 'vscode_pytest', '--rootdir=c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt', '--cov=.', '--cov-branch', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::TestAPIEndpoints::test_finalize_prompt', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::TestAPIEndpoints::test_optimize_prompt', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::TestAPIEndpoints::test_pea_chat', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::TestAPIEndpoints::test_start_pea_session', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::TestAPIEndpoints::test_timeout_error', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_optimize_prompt_success', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_optimize_prompt_no_api_key', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_optimize_prompt_no_request', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_optimize_prompt_empty_request', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_optimize_prompt_api_error', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_start_pea_session_success', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_start_pea_session_no_request', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_pea_chat_success', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_pea_chat_invalid_session', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_pea_chat_missing_data', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_finalize_prompt_success', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_finalize_prompt_invalid_session', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_finalize_prompt_missing_session_id', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_pea_api_error', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_handle_bad_request', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_api.py::test_handle_unsupported_media_type', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_success', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_success_with_whitespace_response', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_missing_json', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_missing_request_field', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_empty_request_field', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_missing_api_key', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_genai_raises_exception', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_non_json_content_type', 'c:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\MyPrompt\\test_api\\test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_request_field_is_none']
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts =============================
+platform win32 -- Python 3.13.0, pytest-8.3.5, pluggy-1.5.0
+rootdir: c:\Users\AlexJ\Documents\Coding\Repos\my-repos\MyPrompt
+configfile: pyproject.toml
+plugins: anyio-4.9.0, Faker-37.0.0, langsmith-0.3.22, asyncio-1.0.0, cov-6.1.1, flask-1.3.0, mock-3.14.0
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 30 items
+
+test_api\test_api.py FFFFFFFFFFF.F.....FFF                               [ 70%]
+test_api\test_optimize_prompt.py F.FFFFFFF                               [100%]
+
+================================== FAILURES ===================================
+____________________ TestAPIEndpoints.test_finalize_prompt ____________________
+
+self = <test_api.test_api.TestAPIEndpoints testMethod=test_finalize_prompt>
+
+    def test_finalize_prompt(self):
+        # Test the /pea/finalize endpoint
+        start_response = self.app.post(
+            "/pea/start", json={"initial_request": "Test initial request"}
+        )
+>       session_id = start_response.get_json()["session_id"]
+E       KeyError: 'session_id'
+
+test_api\test_api.py:49: KeyError
+____________________ TestAPIEndpoints.test_optimize_prompt ____________________
+
+self = <test_api.test_api.TestAPIEndpoints testMethod=test_optimize_prompt>
+
+    def test_optimize_prompt(self):
+        # Test the /optimize-prompt endpoint
+        response = self.app.post(
+            "/optimize-prompt", json={"request": "Test request", "provider": "google"}
+        )
+>       self.assertEqual(response.status_code, 200)
+E       AssertionError: 404 != 200
+
+test_api\test_api.py:19: AssertionError
+_______________________ TestAPIEndpoints.test_pea_chat ________________________
+
+self = <test_api.test_api.TestAPIEndpoints testMethod=test_pea_chat>
+
+    def test_pea_chat(self):
+        # Test the /pea/chat endpoint
+        start_response = self.app.post(
+            "/pea/start", json={"initial_request": "Test initial request"}
+        )
+>       session_id = start_response.get_json()["session_id"]
+E       KeyError: 'session_id'
+
+test_api\test_api.py:36: KeyError
+___________________ TestAPIEndpoints.test_start_pea_session ___________________
+
+self = <test_api.test_api.TestAPIEndpoints testMethod=test_start_pea_session>
+
+    def test_start_pea_session(self):
+        # Test the /pea/start endpoint
+        response = self.app.post(
+            "/pea/start", json={"initial_request": "Test initial request"}
+        )
+>       self.assertEqual(response.status_code, 200)
+E       AssertionError: 404 != 200
+
+test_api\test_api.py:27: AssertionError
+_____________________ TestAPIEndpoints.test_timeout_error _____________________
+
+self = <test_api.test_api.TestAPIEndpoints testMethod=test_timeout_error>
+mock_post = <MagicMock name='post' id='1711618221664'>
+
+    @patch("api.requests.post")
+    def test_timeout_error(self, mock_post):
+        # Test handling of TimeoutError
+        mock_post.side_effect = TimeoutError("Test timeout error")
+    
+        response = self.app.post(
+            "/optimize-prompt", json={"request": "Test request", "provider": "google"}
+        )
+>       self.assertEqual(response.status_code, 500)
+E       AssertionError: 404 != 500
+
+test_api\test_api.py:63: AssertionError
+________________________ test_optimize_prompt_success _________________________
+
+self = <MagicMock name='getenv' id='1711618223008'>, args = ('GEMINI_API_KEY',)
+kwargs = {}, expected = call('GEMINI_API_KEY'), actual = call('GOOGLE_API_KEY')
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x0000018E846E9080>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: getenv('GEMINI_API_KEY')
+E             Actual: getenv('GOOGLE_API_KEY')
+
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:977: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+self = <MagicMock name='getenv' id='1711618223008'>, args = ('GEMINI_API_KEY',)
+kwargs = {}
+
+    def assert_called_once_with(self, /, *args, **kwargs):
+        """assert that the mock was called exactly once and that that call was
+        with the specified arguments."""
+        if not self.call_count == 1:
+            msg = ("Expected '%s' to be called once. Called %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+            raise AssertionError(msg)
+>       return self.assert_called_with(*args, **kwargs)
+E       AssertionError: expected call not found.
+E       Expected: getenv('GEMINI_API_KEY')
+E         Actual: getenv('GOOGLE_API_KEY')
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('GOOGLE_API_KEY',) == ('GEMINI_API_KEY',)
+E         
+E         At index 0 diff: 'GOOGLE_API_KEY' != 'GEMINI_API_KEY'
+E         Use -v to get more diff
+
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:989: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+mock_getenv = <MagicMock name='getenv' id='1711618223008'>
+mock_GenerativeModel = <MagicMock name='GenerativeModel' id='1711618223344'>
+client = <FlaskClient <Flask 'test_api.test_api'>>
+
+    @patch("api.genai.GenerativeModel")
+    @patch("api.os.getenv")
+    def test_optimize_prompt_success(mock_getenv, mock_GenerativeModel, client):
+        mock_getenv.return_value = "fake_api_key"
+        mock_model_instance = MagicMock()
+        mock_GenerativeModel.return_value = mock_model_instance
+        mock_response = MagicMock()
+        mock_response.text = "<optimized_prompt>Test optimized prompt</optimized_prompt>"
+        mock_model_instance.generate_content.return_value = mock_response
+    
+        response = client.post("/api/optimize-prompt", json={"request": "test request"})
+    
+        assert response.status_code == 200
+        assert response.json == {
+            "optimized_prompt": "<optimized_prompt>Test optimized prompt</optimized_prompt>"
+        }
+>       mock_getenv.assert_called_once_with("GEMINI_API_KEY")
+E       AssertionError: expected call not found.
+E       Expected: getenv('GEMINI_API_KEY')
+E         Actual: getenv('GOOGLE_API_KEY')
+E       
+E       pytest introspection follows:
+E       
+E       Args:
+E       assert ('GOOGLE_API_KEY',) == ('GEMINI_API_KEY',)
+E         
+E         At index 0 diff: 'GOOGLE_API_KEY' != 'GEMINI_API_KEY'
+E         Use -v to get more diff
+
+test_api\test_api.py:92: AssertionError
+_______________________ test_optimize_prompt_no_api_key _______________________
+
+mock_getenv = <MagicMock name='getenv' id='1711618224688'>
+client = <FlaskClient <Flask 'test_api.test_api'>>
+
+    @patch("api.os.getenv")
+    def test_optimize_prompt_no_api_key(mock_getenv, client):
+        mock_getenv.return_value = None
+    
+        response = client.post("/api/optimize-prompt", json={"request": "test request"})
+    
+        assert response.status_code == 500
+>       assert "GEMINI_API_KEY" in response.json["error"]
+E       AssertionError: assert 'GEMINI_API_KEY' in 'GOOGLE_API_KEY or OPENAI_API_KEY not set in environment'
+
+test_api\test_api.py:108: AssertionError
+------------------------------ Captured log call ------------------------------
+ERROR    root:api.py:327 optimize_prompt: API key not set for provider: google
+_______________________ test_optimize_prompt_no_request _______________________
+
+client = <FlaskClient <Flask 'test_api.test_api'>>
+
+    def test_optimize_prompt_no_request(client):
+        response = client.post("/api/optimize-prompt", json={})
+        assert response.status_code == 400
+>       assert response.json == {"error": "No request provided"}
+E       AssertionError: assert {'error': 'Re...must be JSON'} == {'error': 'No...est provided'}
+E         
+E         Differing items:
+E         {'error': 'Request body must be JSON'} != {'error': 'No request provided'}
+E         Use -v to get more diff
+
+test_api\test_api.py:115: AssertionError
+------------------------------ Captured log call ------------------------------
+ERROR    root:api.py:304 optimize_prompt: No request body provided.
+_____________________ test_optimize_prompt_empty_request ______________________
+
+client = <FlaskClient <Flask 'test_api.test_api'>>
+
+    def test_optimize_prompt_empty_request(client):
+        response = client.post("/api/optimize-prompt", json={"request": ""})
+        assert response.status_code == 400
+>       assert response.json == {"error": "No request provided"}
+E       assert {'error': "No...ided in JSON"} == {'error': 'No...est provided'}
+E         
+E         Differing items:
+E         {'error': "No 'request' field provided in JSON"} != {'error': 'No request provided'}
+E         Use -v to get more diff
+
+test_api\test_api.py:121: AssertionError
+------------------------------ Captured log call ------------------------------
+ERROR    root:api.py:307 optimize_prompt: Missing or empty 'request' field.
+_______________________ test_optimize_prompt_api_error ________________________
+
+mock_getenv = <MagicMock name='getenv' id='1711618227376'>
+mock_GenerativeModel = <MagicMock name='GenerativeModel' id='1711618227712'>
+client = <FlaskClient <Flask 'test_api.test_api'>>
+
+    @patch("api.genai.GenerativeModel")
+    @patch("api.os.getenv")
+    def test_optimize_prompt_api_error(mock_getenv, mock_GenerativeModel, client):
+        mock_getenv.return_value = "fake_api_key"
+        mock_model_instance = MagicMock()
+        mock_GenerativeModel.return_value = mock_model_instance
+        mock_model_instance.generate_content.side_effect = Exception("API Error")
+    
+>       response = client.post("/api/optimize-prompt", json={"request": "test request"})
+
+test_api\test_api.py:132: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:1167: in post
+    return self.open(*args, **kw)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\testing.py:232: in open
+    response = super().open(
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:1116: in open
+    response_parts = self.run_wsgi_app(request.environ, buffered=buffered)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:988: in run_wsgi_app
+    rv = run_wsgi_app(self.application, environ, buffered=buffered)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:1264: in run_wsgi_app
+    app_rv = app(environ, start_response)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:2213: in __call__
+    return self.wsgi_app(environ, start_response)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:2193: in wsgi_app
+    response = self.handle_exception(e)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:2190: in wsgi_app
+    response = self.full_dispatch_request()
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1486: in full_dispatch_request
+    rv = self.handle_user_exception(e)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1484: in full_dispatch_request
+    rv = self.dispatch_request()
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1469: in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+api.py:345: in optimize_prompt
+    optimized_prompt_xml = _generate_optimized_prompt_xml(
+api.py:169: in _generate_optimized_prompt_xml
+    return _generate_chat_response(provider, model_name, api_key, messages)
+api.py:193: in _generate_chat_response
+    response = model_instance.generate_content(
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1167: in __call__
+    return self._mock_call(*args, **kwargs)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1171: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <MagicMock name='GenerativeModel().generate_content' id='1711619981728'>
+args = ([{'content': 'Generate an optimized XML prompt based on the following user request.\n    The XML structure and optimi...est request\n\n    Provide the optimized prompt within <optimized_prompt></optimized_prompt> tags.', 'role': 'user'}],)
+kwargs = {'safety_settings': {<HarmCategory.HARM_CATEGORY_HARASSMENT: 7>: <HarmBlockThreshold.BLOCK_NONE: 4>, <HarmCategory.HAR...BlockThreshold.BLOCK_NONE: 4>, <HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: 10>: <HarmBlockThreshold.BLOCK_NONE: 4>}}
+effect = Exception('API Error')
+
+    def _execute_mock_call(self, /, *args, **kwargs):
+        # separate from _increment_mock_call so that awaited functions are
+        # executed separately from their call, also AsyncMock overrides this method
+    
+        effect = self.side_effect
+        if effect is not None:
+            if _is_exception(effect):
+>               raise effect
+E               Exception: API Error
+
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1226: Exception
+_______________________ test_start_pea_session_success ________________________
+
+mock_getenv = <MagicMock name='getenv' id='1711617589664'>
+mock_GenerativeModel = <MagicMock name='GenerativeModel' id='1711617604448'>
+client = <FlaskClient <Flask 'test_api.test_api'>>
+
+    @patch("api.genai.GenerativeModel")
+    @patch("api.os.getenv")
+    def test_start_pea_session_success(mock_getenv, mock_GenerativeModel, client):
+        # Setup mocks
+        mock_getenv.return_value = "fake_api_key"
+        mock_model_instance = MagicMock()
+        mock_GenerativeModel.return_value = mock_model_instance
+        mock_response = MagicMock()
+        mock_response.text = "Hello! I'm PEA. Let me help you refine your prompt."
+        mock_model_instance.generate_content.return_value = mock_response
+    
+        # Test request
+        response = client.post(
+            "/api/pea/start", json={"initial_request": "Help me create a prompt"}
+        )
+    
+        # Assertions
+        assert response.status_code == 200
+        assert "session_id" in response.json
+        assert "response" in response.json
+        assert response.json["response"] == mock_response.text
+    
+        # Verify conversation was stored
+        session_id = response.json["session_id"]
+        assert session_id in pea_conversations
+        # After the initial turn, history should contain 2 messages: user (with system prompt prepended) + model response
+>       assert len(pea_conversations[session_id]) == 2
+E       assert 3 == 2
+E        +  where 3 = len([{'parts': [{'text': '# System Prompt: Prompt Engineering Assistant (PEA)\n\n## Your Role:\nYou are PEA, an AI Prompt ...mpt'}], 'role': 'user'}, {'parts': [{'text': "Hello! I'm PEA. Let me help you refine your prompt."}], 'role': 'model'}])
+
+test_api\test_api.py:176: AssertionError
+____________________________ test_pea_chat_success ____________________________
+
+mock_getenv = <MagicMock name='getenv' id='1711618217632'>
+mock_GenerativeModel = <MagicMock name='GenerativeModel' id='1711618216960'>
+client = <FlaskClient <Flask 'test_api.test_api'>>
+
+    @patch("api.genai.GenerativeModel")
+    @patch("api.os.getenv")
+    def test_pea_chat_success(mock_getenv, mock_GenerativeModel, client):
+        # First start a session
+        mock_getenv.return_value = "fake_api_key"
+        mock_model_instance = MagicMock()
+        mock_GenerativeModel.return_value = mock_model_instance
+        mock_response = MagicMock()
+        mock_response.text = "Initial response"
+        mock_model_instance.generate_content.return_value = mock_response
+    
+        start_response = client.post("/api/pea/start", json={"initial_request": "Help me"})
+        session_id = start_response.json["session_id"]
+    
+        # Then test chat endpoint
+        mock_response.text = "Follow-up response"
+        chat_response = client.post(
+            "/api/pea/chat",
+            json={"session_id": session_id, "message": "My follow-up question"},
+        )
+    
+        assert chat_response.status_code == 200
+        assert chat_response.json == {"response": "Follow-up response"}
+        # After the initial 2 messages, adding a user and model message makes it 4
+>       assert len(pea_conversations[session_id]) == 4
+E       AssertionError: assert 5 == 4
+E        +  where 5 = len([{'parts': [{'text': '# System Prompt: Prompt Engineering Assistant (PEA)\n\n## Your Role:\nYou are PEA, an AI Prompt ...s': [{'text': 'My follow-up question'}], 'role': 'user'}, {'parts': [{'text': 'Follow-up response'}], 'role': 'model'}])
+
+test_api\test_api.py:209: AssertionError
+_____________________________ test_pea_api_error ______________________________
+
+mock_getenv = <MagicMock name='getenv' id='1711618223008'>
+mock_GenerativeModel = <MagicMock name='GenerativeModel' id='1711618221664'>
+client = <FlaskClient <Flask 'test_api.test_api'>>
+
+    @patch("api.genai.GenerativeModel")
+    @patch("api.os.getenv")
+    def test_pea_api_error(mock_getenv, mock_GenerativeModel, client):
+        mock_getenv.return_value = "fake_api_key"
+        mock_model_instance = MagicMock()
+        mock_GenerativeModel.return_value = mock_model_instance
+        mock_model_instance.generate_content.side_effect = Exception("API Error")
+    
+        # Test API error during PEA start
+>       response = client.post("/api/pea/start", json={"initial_request": "Help me"})
+
+test_api\test_api.py:279: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:1167: in post
+    return self.open(*args, **kw)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\testing.py:232: in open
+    response = super().open(
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:1116: in open
+    response_parts = self.run_wsgi_app(request.environ, buffered=buffered)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:988: in run_wsgi_app
+    rv = run_wsgi_app(self.application, environ, buffered=buffered)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:1264: in run_wsgi_app
+    app_rv = app(environ, start_response)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:2213: in __call__
+    return self.wsgi_app(environ, start_response)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:2193: in wsgi_app
+    response = self.handle_exception(e)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:2190: in wsgi_app
+    response = self.full_dispatch_request()
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1486: in full_dispatch_request
+    rv = self.handle_user_exception(e)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1484: in full_dispatch_request
+    rv = self.dispatch_request()
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1469: in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+api.py:452: in start_pea_session
+    pea_response_content = _generate_chat_response(
+api.py:193: in _generate_chat_response
+    response = model_instance.generate_content(
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1167: in __call__
+    return self._mock_call(*args, **kwargs)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1171: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <MagicMock name='GenerativeModel().generate_content' id='1711618224352'>
+args = ([{'parts': [{'text': '# System Prompt: Prompt Engineering Assistant (PEA)\n\n## Your Role:\nYou are PEA, an AI Prompt...te a comprehensive prompt for another LLM.\n'}], 'role': 'system'}, {'parts': [{'text': 'Help me'}], 'role': 'user'}],)
+kwargs = {'safety_settings': {<HarmCategory.HARM_CATEGORY_HARASSMENT: 7>: <HarmBlockThreshold.BLOCK_NONE: 4>, <HarmCategory.HAR...BlockThreshold.BLOCK_NONE: 4>, <HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: 10>: <HarmBlockThreshold.BLOCK_NONE: 4>}}
+effect = Exception('API Error')
+
+    def _execute_mock_call(self, /, *args, **kwargs):
+        # separate from _increment_mock_call so that awaited functions are
+        # executed separately from their call, also AsyncMock overrides this method
+    
+        effect = self.side_effect
+        if effect is not None:
+            if _is_exception(effect):
+>               raise effect
+E               Exception: API Error
+
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1226: Exception
+___________________________ test_handle_bad_request ___________________________
+
+client = <FlaskClient <Flask 'test_api.test_api'>>
+
+    def test_handle_bad_request(client):
+        """Test the BadRequest error handler for invalid JSON."""
+        # Send non-JSON data to a JSON-only endpoint
+        response = client.post("/api/optimize-prompt", data="not json")
+        assert response.status_code == 415
+>       assert "Unsupported Media Type" in response.json["error"]
+E       TypeError: 'NoneType' object is not subscriptable
+
+test_api\test_api.py:334: TypeError
+_____________________ test_handle_unsupported_media_type ______________________
+
+client = <FlaskClient <Flask 'test_api.test_api'>>
+
+    def test_handle_unsupported_media_type(client):
+        """Test the UnsupportedMediaType error handler."""
+        # Send data with wrong Content-Type
+        response = client.post(
+            "/api/optimize-prompt",
+            data={"request": "test"},
+            headers={"Content-Type": "text/plain"},
+        )
+        assert response.status_code == 415
+>       assert "Unsupported Media Type" in response.json["error"]
+E       TypeError: 'NoneType' object is not subscriptable
+
+test_api\test_api.py:346: TypeError
+_______________ TestOptimizePrompt.test_optimize_prompt_success _______________
+
+self = <MagicMock name='configure' id='1711618220320'>, args = ()
+kwargs = {'api_key': 'dummy_key'}, expected = call(api_key='dummy_key')
+actual = call(api_key='AIzaSyCPFoxIu3IUtlFvQWsaMG5ulgnNvddTtEQ')
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x0000018E8478BB00>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: configure(api_key='dummy_key')
+E             Actual: configure(api_key='AIzaSyCPFoxIu3IUtlFvQWsaMG5ulgnNvddTtEQ')
+
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:977: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+self = <MagicMock name='configure' id='1711618220320'>, args = ()
+kwargs = {'api_key': 'dummy_key'}
+
+    def assert_called_once_with(self, /, *args, **kwargs):
+        """assert that the mock was called exactly once and that that call was
+        with the specified arguments."""
+        if not self.call_count == 1:
+            msg = ("Expected '%s' to be called once. Called %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+            raise AssertionError(msg)
+>       return self.assert_called_with(*args, **kwargs)
+E       AssertionError: expected call not found.
+E       Expected: configure(api_key='dummy_key')
+E         Actual: configure(api_key='AIzaSyCPFoxIu3IUtlFvQWsaMG5ulgnNvddTtEQ')
+E       
+E       pytest introspection follows:
+E       
+E       Kwargs:
+E       assert {'api_key': '...ulgnNvddTtEQ'} == {'api_key': 'dummy_key'}
+E         
+E         Differing items:
+E         {'api_key': 'AIzaSyCPFoxIu3IUtlFvQWsaMG5ulgnNvddTtEQ'} != {'api_key': 'dummy_key'}
+E         Use -v to get more diff
+
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:989: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+self = <test_api.test_optimize_prompt.TestOptimizePrompt object at 0x0000018E844F7D90>
+client = <FlaskClient <Flask 'test_api.test_optimize_prompt'>>
+
+    @pytest.mark.happy_path
+    def test_optimize_prompt_success(self, client):
+        """
+        Test that a valid request with a proper 'request' field returns a 200 and the optimized prompt.
+        """
+        test_api_key = "dummy_key"
+        test_user_request = "Write a poem about the sea."
+        test_llm_response = "<optimized_prompt><poem>Ode to the Sea...</poem></optimized_prompt>"
+    
+        with patch.dict(os.environ, {"GEMINI_API_KEY": test_api_key}), \
+            patch("api.genai.configure") as mock_configure, \
+            patch("api.genai.GenerativeModel") as mock_model_class:
+    
+            mock_model = MagicMock()
+            mock_model.generate_content.return_value.text = test_llm_response
+            mock_model_class.return_value = mock_model
+    
+            response = client.post(
+                "/optimize-prompt",
+                data=json.dumps({"request": test_user_request}),
+                content_type="application/json"
+            )
+    
+            assert response.status_code == 200
+            data = response.get_json()
+            assert "optimized_prompt" in data
+            assert data["optimized_prompt"] == test_llm_response
+>           mock_configure.assert_called_once_with(api_key=test_api_key)
+E           AssertionError: expected call not found.
+E           Expected: configure(api_key='dummy_key')
+E             Actual: configure(api_key='AIzaSyCPFoxIu3IUtlFvQWsaMG5ulgnNvddTtEQ')
+E           
+E           pytest introspection follows:
+E           
+E           Kwargs:
+E           assert {'api_key': '...ulgnNvddTtEQ'} == {'api_key': 'dummy_key'}
+E             
+E             Differing items:
+E             {'api_key': 'AIzaSyCPFoxIu3IUtlFvQWsaMG5ulgnNvddTtEQ'} != {'api_key': 'dummy_key'}
+E             Use -v to get more diff
+
+test_api\test_optimize_prompt.py:55: AssertionError
+____________ TestOptimizePrompt.test_optimize_prompt_missing_json _____________
+
+self = <test_api.test_optimize_prompt.TestOptimizePrompt object at 0x0000018E8452F100>
+client = <FlaskClient <Flask 'test_api.test_optimize_prompt'>>
+
+    @pytest.mark.edge_case
+    def test_optimize_prompt_missing_json(self, client):
+        """
+        Test that a request with content_type json but no body returns a 400 error.
+        """
+        response = client.post(
+            "/optimize-prompt",
+            # Omit data parameter to simulate no request body
+            # data="", # Sending empty string can cause parsing issues
+            content_type="application/json"
+        )
+        assert response.status_code == 400
+>       assert response.content_type == "application/json" # Ensure the error response is JSON
+E       AssertionError: assert 'text/html; charset=utf-8' == 'application/json'
+E         
+E         - application/json
+E         + text/html; charset=utf-8
+
+test_api\test_optimize_prompt.py:99: AssertionError
+________ TestOptimizePrompt.test_optimize_prompt_missing_request_field ________
+
+self = <test_api.test_optimize_prompt.TestOptimizePrompt object at 0x0000018E8452F230>
+client = <FlaskClient <Flask 'test_api.test_optimize_prompt'>>
+
+    @pytest.mark.edge_case
+    def test_optimize_prompt_missing_request_field(self, client):
+        """
+        Test that a request with JSON but missing 'request' field returns a 400 error.
+        """
+        response = client.post(
+            "/optimize-prompt",
+            data=json.dumps({"foo": "bar"}),
+            content_type="application/json"
+        )
+        assert response.status_code == 400
+        data = response.get_json()
+>       assert data["error"] == "No request provided"
+E       assert "No 'request'...vided in JSON" == 'No request provided'
+E         
+E         - No request provided
+E         + No 'request' field provided in JSON
+
+test_api\test_optimize_prompt.py:116: AssertionError
+------------------------------ Captured log call ------------------------------
+ERROR    root:api.py:307 optimize_prompt: Missing or empty 'request' field.
+_________ TestOptimizePrompt.test_optimize_prompt_empty_request_field _________
+
+self = <test_api.test_optimize_prompt.TestOptimizePrompt object at 0x0000018E845A4950>
+client = <FlaskClient <Flask 'test_api.test_optimize_prompt'>>
+
+    @pytest.mark.edge_case
+    def test_optimize_prompt_empty_request_field(self, client):
+        """
+        Test that a request with an empty 'request' field returns a 400 error.
+        """
+        response = client.post(
+            "/optimize-prompt",
+            data=json.dumps({"request": ""}),
+            content_type="application/json"
+        )
+        assert response.status_code == 400
+        data = response.get_json()
+>       assert data["error"] == "No request provided"
+E       assert "No 'request'...vided in JSON" == 'No request provided'
+E         
+E         - No request provided
+E         + No 'request' field provided in JSON
+
+test_api\test_optimize_prompt.py:130: AssertionError
+------------------------------ Captured log call ------------------------------
+ERROR    root:api.py:307 optimize_prompt: Missing or empty 'request' field.
+___________ TestOptimizePrompt.test_optimize_prompt_missing_api_key ___________
+
+self = <test_api.test_optimize_prompt.TestOptimizePrompt object at 0x0000018E845B0050>
+client = <FlaskClient <Flask 'test_api.test_optimize_prompt'>>
+
+    @pytest.mark.edge_case
+    def test_optimize_prompt_missing_api_key(self, client):
+        """
+        Test that if GEMINI_API_KEY is not set, a 500 error is returned.
+        """
+        with patch.dict(os.environ, {}, clear=True):
+            response = client.post(
+                "/optimize-prompt",
+                data=json.dumps({"request": "Test prompt"}),
+                content_type="application/json"
+            )
+            assert response.status_code == 500
+            data = response.get_json()
+>           assert data["error"] == "GEMINI_API_KEY not set"
+E           AssertionError: assert 'GOOGLE_API_K...n environment' == 'GEMINI_API_KEY not set'
+E             
+E             - GEMINI_API_KEY not set
+E             + GOOGLE_API_KEY or OPENAI_API_KEY not set in environment
+
+test_api\test_optimize_prompt.py:145: AssertionError
+------------------------------ Captured log call ------------------------------
+ERROR    root:api.py:327 optimize_prompt: API key not set for provider: google
+_______ TestOptimizePrompt.test_optimize_prompt_genai_raises_exception ________
+
+self = <test_api.test_optimize_prompt.TestOptimizePrompt object at 0x0000018E845B0160>
+client = <FlaskClient <Flask 'test_api.test_optimize_prompt'>>
+
+    @pytest.mark.edge_case
+    def test_optimize_prompt_genai_raises_exception(self, client):
+        """
+        Test that if the LLM call raises an exception, a 500 error is returned with the exception message.
+        """
+        test_api_key = "dummy_key"
+        test_user_request = "Write a story."
+        error_message = "LLM API failure"
+    
+        with patch.dict(os.environ, {"GEMINI_API_KEY": test_api_key}), \
+            patch("api.genai.configure"), \
+            patch("api.genai.GenerativeModel") as mock_model_class:
+    
+            mock_model = MagicMock()
+            mock_model.generate_content.side_effect = Exception(error_message)
+            mock_model_class.return_value = mock_model
+    
+>           response = client.post(
+                "/optimize-prompt",
+                data=json.dumps({"request": test_user_request}),
+                content_type="application/json"
+            )
+
+test_api\test_optimize_prompt.py:164: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:1167: in post
+    return self.open(*args, **kw)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\testing.py:232: in open
+    response = super().open(
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:1116: in open
+    response_parts = self.run_wsgi_app(request.environ, buffered=buffered)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:988: in run_wsgi_app
+    rv = run_wsgi_app(self.application, environ, buffered=buffered)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\werkzeug\test.py:1264: in run_wsgi_app
+    app_rv = app(environ, start_response)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:2213: in __call__
+    return self.wsgi_app(environ, start_response)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:2193: in wsgi_app
+    response = self.handle_exception(e)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:2190: in wsgi_app
+    response = self.full_dispatch_request()
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1486: in full_dispatch_request
+    rv = self.handle_user_exception(e)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1484: in full_dispatch_request
+    rv = self.dispatch_request()
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py:1469: in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+api.py:345: in optimize_prompt
+    optimized_prompt_xml = _generate_optimized_prompt_xml(
+api.py:169: in _generate_optimized_prompt_xml
+    return _generate_chat_response(provider, model_name, api_key, messages)
+api.py:193: in _generate_chat_response
+    response = model_instance.generate_content(
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1167: in __call__
+    return self._mock_call(*args, **kwargs)
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1171: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <MagicMock name='GenerativeModel().generate_content' id='1711618221328'>
+args = ([{'content': 'Generate an optimized XML prompt based on the following user request.\n    The XML structure and optimi...te a story.\n\n    Provide the optimized prompt within <optimized_prompt></optimized_prompt> tags.', 'role': 'user'}],)
+kwargs = {'safety_settings': {<HarmCategory.HARM_CATEGORY_HARASSMENT: 7>: <HarmBlockThreshold.BLOCK_NONE: 4>, <HarmCategory.HAR...BlockThreshold.BLOCK_NONE: 4>, <HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: 10>: <HarmBlockThreshold.BLOCK_NONE: 4>}}
+effect = Exception('LLM API failure')
+
+    def _execute_mock_call(self, /, *args, **kwargs):
+        # separate from _increment_mock_call so that awaited functions are
+        # executed separately from their call, also AsyncMock overrides this method
+    
+        effect = self.side_effect
+        if effect is not None:
+            if _is_exception(effect):
+>               raise effect
+E               Exception: LLM API failure
+
+C:\Users\AlexJ\AppData\Local\Programs\Python\Python313\Lib\unittest\mock.py:1226: Exception
+________ TestOptimizePrompt.test_optimize_prompt_non_json_content_type ________
+
+self = <test_api.test_optimize_prompt.TestOptimizePrompt object at 0x0000018E84496F50>
+client = <FlaskClient <Flask 'test_api.test_optimize_prompt'>>
+
+    @pytest.mark.edge_case
+    def test_optimize_prompt_non_json_content_type(self, client):
+        """
+        Test that a request with a non-JSON content type returns a 415 error.
+        """
+        response = client.post(
+            "/optimize-prompt",
+            data="request=hello",
+            content_type="application/x-www-form-urlencoded"
+        )
+        assert response.status_code == 415 # Expect Unsupported Media Type
+>       assert response.content_type == "application/json" # Ensure the error response is JSON
+E       AssertionError: assert 'text/html; charset=utf-8' == 'application/json'
+E         
+E         - application/json
+E         + text/html; charset=utf-8
+
+test_api\test_optimize_prompt.py:185: AssertionError
+________ TestOptimizePrompt.test_optimize_prompt_request_field_is_none ________
+
+self = <test_api.test_optimize_prompt.TestOptimizePrompt object at 0x0000018E84497650>
+client = <FlaskClient <Flask 'test_api.test_optimize_prompt'>>
+
+    @pytest.mark.edge_case
+    def test_optimize_prompt_request_field_is_none(self, client):
+        """
+        Test that a request with 'request' field explicitly set to None returns a 400 error.
+        """
+        response = client.post(
+            "/optimize-prompt",
+            data=json.dumps({"request": None}),
+            content_type="application/json"
+        )
+        assert response.status_code == 400
+        data = response.get_json()
+>       assert data["error"] == "No request provided"
+E       assert "No 'request'...vided in JSON" == 'No request provided'
+E         
+E         - No request provided
+E         + No 'request' field provided in JSON
+
+test_api\test_optimize_prompt.py:202: AssertionError
+------------------------------ Captured log call ------------------------------
+ERROR    root:api.py:307 optimize_prompt: Missing or empty 'request' field.
+============================== warnings summary ===============================
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.MessageMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.ScalarMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+
+test_api\test_optimize_prompt.py:28
+  c:\Users\AlexJ\Documents\Coding\Repos\my-repos\MyPrompt\test_api\test_optimize_prompt.py:28: PytestUnknownMarkWarning: Unknown pytest.mark.happy_path - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.happy_path
+
+test_api\test_optimize_prompt.py:58
+  c:\Users\AlexJ\Documents\Coding\Repos\my-repos\MyPrompt\test_api\test_optimize_prompt.py:58: PytestUnknownMarkWarning: Unknown pytest.mark.happy_path - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.happy_path
+
+test_api\test_optimize_prompt.py:87
+  c:\Users\AlexJ\Documents\Coding\Repos\my-repos\MyPrompt\test_api\test_optimize_prompt.py:87: PytestUnknownMarkWarning: Unknown pytest.mark.edge_case - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.edge_case
+
+test_api\test_optimize_prompt.py:104
+  c:\Users\AlexJ\Documents\Coding\Repos\my-repos\MyPrompt\test_api\test_optimize_prompt.py:104: PytestUnknownMarkWarning: Unknown pytest.mark.edge_case - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.edge_case
+
+test_api\test_optimize_prompt.py:118
+  c:\Users\AlexJ\Documents\Coding\Repos\my-repos\MyPrompt\test_api\test_optimize_prompt.py:118: PytestUnknownMarkWarning: Unknown pytest.mark.edge_case - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.edge_case
+
+test_api\test_optimize_prompt.py:132
+  c:\Users\AlexJ\Documents\Coding\Repos\my-repos\MyPrompt\test_api\test_optimize_prompt.py:132: PytestUnknownMarkWarning: Unknown pytest.mark.edge_case - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.edge_case
+
+test_api\test_optimize_prompt.py:147
+  c:\Users\AlexJ\Documents\Coding\Repos\my-repos\MyPrompt\test_api\test_optimize_prompt.py:147: PytestUnknownMarkWarning: Unknown pytest.mark.edge_case - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.edge_case
+
+test_api\test_optimize_prompt.py:174
+  c:\Users\AlexJ\Documents\Coding\Repos\my-repos\MyPrompt\test_api\test_optimize_prompt.py:174: PytestUnknownMarkWarning: Unknown pytest.mark.edge_case - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.edge_case
+
+test_api\test_optimize_prompt.py:190
+  c:\Users\AlexJ\Documents\Coding\Repos\my-repos\MyPrompt\test_api\test_optimize_prompt.py:190: PytestUnknownMarkWarning: Unknown pytest.mark.edge_case - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.edge_case
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.13.0-final-0 _______________
+
+Name                               Stmts   Miss Branch BrPart  Cover
+--------------------------------------------------------------------
+api.py                               213     67     48      7    65%
+app.py                                19      3      2      1    81%
+test_api\__init__.py                   0      0      0      0   100%
+test_api\test_api.py                 200     42      0      0    79%
+test_api\test_gemini_api.py           16     16      2      0     0%
+test_api\test_optimize_prompt.py      97     10      0      0    90%
+test_app\__init__.py                   0      0      0      0   100%
+test_app\test_index.py                40     40      0      0     0%
+test_app\test_index_1.py              40     40      0      0     0%
+--------------------------------------------------------------------
+TOTAL                                625    218     52      8    64%
+=========================== short test summary info ===========================
+FAILED test_api/test_api.py::TestAPIEndpoints::test_finalize_prompt - KeyErro...
+FAILED test_api/test_api.py::TestAPIEndpoints::test_optimize_prompt - Asserti...
+FAILED test_api/test_api.py::TestAPIEndpoints::test_pea_chat - KeyError: 'ses...
+FAILED test_api/test_api.py::TestAPIEndpoints::test_start_pea_session - Asser...
+FAILED test_api/test_api.py::TestAPIEndpoints::test_timeout_error - Assertion...
+FAILED test_api/test_api.py::test_optimize_prompt_success - AssertionError: e...
+FAILED test_api/test_api.py::test_optimize_prompt_no_api_key - AssertionError...
+FAILED test_api/test_api.py::test_optimize_prompt_no_request - AssertionError...
+FAILED test_api/test_api.py::test_optimize_prompt_empty_request - assert {'er...
+FAILED test_api/test_api.py::test_optimize_prompt_api_error - Exception: API ...
+FAILED test_api/test_api.py::test_start_pea_session_success - assert 3 == 2
+FAILED test_api/test_api.py::test_pea_chat_success - AssertionError: assert 5...
+FAILED test_api/test_api.py::test_pea_api_error - Exception: API Error
+FAILED test_api/test_api.py::test_handle_bad_request - TypeError: 'NoneType' ...
+FAILED test_api/test_api.py::test_handle_unsupported_media_type - TypeError: ...
+FAILED test_api/test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_success
+FAILED test_api/test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_missing_json
+FAILED test_api/test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_missing_request_field
+FAILED test_api/test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_empty_request_field
+FAILED test_api/test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_missing_api_key
+FAILED test_api/test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_genai_raises_exception
+FAILED test_api/test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_non_json_content_type
+FAILED test_api/test_optimize_prompt.py::TestOptimizePrompt::test_optimize_prompt_request_field_is_none
+================== 23 failed, 7 passed, 11 warnings in 7.18s ==================
+Finished running tests!

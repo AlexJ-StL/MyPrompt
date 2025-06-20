@@ -4,7 +4,7 @@
 # within the Void IDE.
 
 # BE SURE TO RUN ALL TERMINAL COMMANDS WITHIN THE UV ENVIRONMENT!!
-# This requires running the command '.venv/Scripts/activate' 
+# This requires running the command '.venv/Scripts/activate'
 # upon initialization of a new terminal session. Any dependancy installation
 # must be done within the virtual environment. Additionally, all commands that
 # use those dependancies must be run within the uv virtual enviornment. Please

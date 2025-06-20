@@ -1,0 +1,209 @@
+Directory Tree - MyPrompt
+MyPrompt/
+├── __pycache__/
+│   ├── api.cpython-312.pyc
+│   ├── api.cpython-313-pytest-8.3.5.pyc
+│   ├── api.cpython-313.pyc
+│   ├── app.cpython-312.pyc
+│   ├── app.cpython-313.pyc
+│   ├── test_api.cpython-312-pytest-8.3.5.pyc
+│   ├── test_api.cpython-313-pytest-8.3.5.pyc
+│   └── test_gemini_api.cpython-313-pytest-8.4.0.pyc
+├── api.py
+├── app.py
+├── frontend-vite/
+│   ├── dist/
+│   │   ├── assets/
+│   │   ├── index.html
+│   │   └── vite.svg
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── node_modules/
+│   │   ├── @adobe/
+│   │   ├── @ampproject/
+│   │   ├── @asamuzakjp/
+│   │   ├── @babel/
+│   │   ├── @csstools/
+│   │   ├── @esbuild/
+│   │   ├── @eslint/
+│   │   ├── @eslint-community/
+│   │   ├── @humanfs/
+│   │   ├── @humanwhocodes/
+│   │   ├── @jridgewell/
+│   │   ├── @rolldown/
+│   │   ├── @rollup/
+│   │   ├── @testing-library/
+│   │   ├── @types/
+│   │   ├── @vitejs/
+│   │   ├── acorn/
+│   │   ├── acorn-jsx/
+│   │   ├── agent-base/
+│   │   ├── ajv/
+│   │   ├── ansi-regex/
+│   │   ├── ansi-styles/
+│   │   ├── argparse/
+│   │   ├── aria-query/
+│   │   ├── balanced-match/
+│   │   ├── brace-expansion/
+│   │   ├── browserslist/
+│   │   ├── callsites/
+│   │   ├── caniuse-lite/
+│   │   ├── chalk/
+│   │   ├── color-convert/
+│   │   ├── color-name/
+│   │   ├── concat-map/
+│   │   ├── convert-source-map/
+│   │   ├── cross-spawn/
+│   │   ├── css.escape/
+│   │   ├── cssstyle/
+│   │   ├── csstype/
+│   │   ├── data-urls/
+│   │   ├── debug/
+│   │   ├── decimal.js/
+│   │   ├── deep-is/
+│   │   ├── dequal/
+│   │   ├── dom-accessibility-api/
+│   │   ├── electron-to-chromium/
+│   │   ├── entities/
+│   │   ├── esbuild/
+│   │   ├── escalade/
+│   │   ├── escape-string-regexp/
+│   │   ├── eslint/
+│   │   ├── eslint-plugin-react-hooks/
+│   │   ├── eslint-plugin-react-refresh/
+│   │   ├── eslint-scope/
+│   │   ├── eslint-visitor-keys/
+│   │   ├── espree/
+│   │   ├── esquery/
+│   │   ├── esrecurse/
+│   │   ├── estraverse/
+│   │   ├── esutils/
+│   │   ├── fast-deep-equal/
+│   │   ├── fast-json-stable-stringify/
+│   │   ├── fast-levenshtein/
+│   │   ├── fdir/
+│   │   ├── file-entry-cache/
+│   │   ├── find-up/
+│   │   ├── flat-cache/
+│   │   ├── flatted/
+│   │   ├── gensync/
+│   │   ├── glob-parent/
+│   │   ├── globals/
+│   │   ├── has-flag/
+│   │   ├── html-encoding-sniffer/
+│   │   ├── http-proxy-agent/
+│   │   ├── https-proxy-agent/
+│   │   ├── iconv-lite/
+│   │   ├── ignore/
+│   │   ├── import-fresh/
+│   │   ├── imurmurhash/
+│   │   ├── indent-string/
+│   │   ├── is-extglob/
+│   │   ├── is-glob/
+│   │   ├── is-potential-custom-element-name/
+│   │   ├── isexe/
+│   │   ├── js-tokens/
+│   │   ├── js-yaml/
+│   │   ├── jsdom/
+│   │   ├── jsesc/
+│   │   ├── json-buffer/
+│   │   ├── json-schema-traverse/
+│   │   ├── json-stable-stringify-without-jsonify/
+│   │   ├── json5/
+│   │   ├── keyv/
+│   │   ├── levn/
+│   │   ├── locate-path/
+│   │   ├── lodash/
+│   │   ├── lodash.merge/
+│   │   ├── lru-cache/
+│   │   ├── lz-string/
+│   │   ├── min-indent/
+│   │   ├── minimatch/
+│   │   ├── ms/
+│   │   ├── nanoid/
+│   │   ├── natural-compare/
+│   │   ├── node-releases/
+│   │   ├── nwsapi/
+│   │   ├── optionator/
+│   │   ├── p-limit/
+│   │   ├── p-locate/
+│   │   ├── parent-module/
+│   │   ├── parse5/
+│   │   ├── path-exists/
+│   │   ├── path-key/
+│   │   ├── picocolors/
+│   │   ├── picomatch/
+│   │   ├── postcss/
+│   │   ├── prelude-ls/
+│   │   ├── pretty-format/
+│   │   ├── punycode/
+│   │   ├── react/
+│   │   ├── react-dom/
+│   │   ├── react-is/
+│   │   ├── react-refresh/
+│   │   ├── redent/
+│   │   ├── resolve-from/
+│   │   ├── rollup/
+│   │   ├── rrweb-cssom/
+│   │   ├── safer-buffer/
+│   │   ├── saxes/
+│   │   ├── scheduler/
+│   │   ├── semver/
+│   │   ├── shebang-command/
+│   │   ├── shebang-regex/
+│   │   ├── source-map-js/
+│   │   ├── strip-indent/
+│   │   ├── strip-json-comments/
+│   │   ├── supports-color/
+│   │   ├── symbol-tree/
+│   │   ├── tinyglobby/
+│   │   ├── tldts/
+│   │   ├── tldts-core/
+│   │   ├── tough-cookie/
+│   │   ├── tr46/
+│   │   ├── type-check/
+│   │   ├── update-browserslist-db/
+│   │   ├── uri-js/
+│   │   ├── vite/
+│   │   ├── w3c-xmlserializer/
+│   │   ├── webidl-conversions/
+│   │   ├── whatwg-encoding/
+│   │   ├── whatwg-mimetype/
+│   │   ├── whatwg-url/
+│   │   ├── which/
+│   │   ├── word-wrap/
+│   │   ├── ws/
+│   │   ├── xml-name-validator/
+│   │   ├── xmlchars/
+│   │   ├── yallist/
+│   │   └── yocto-queue/
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public/
+│   │   └── vite.svg
+│   ├── README.md
+│   ├── src/
+│   │   ├── App.css
+│   │   ├── App.early.test/
+│   │   ├── App.jsx
+│   │   ├── App.test.jsx
+│   │   ├── assets/
+│   │   ├── index.css
+│   │   ├── main.jsx
+│   │   └── PEAChat.jsx
+│   └── vite.config.js
+├── pyproject.toml
+├── README.md
+├── tests/
+│   ├── test_api/
+│   │   ├── __init__.py
+│   │   ├── __pycache__/
+│   │   ├── test_api.py
+│   │   ├── test_gemini_api.py
+│   │   └── test_optimize_prompt.py
+│   └── test_app/
+│       ├── __init__.py
+│       ├── __pycache__/
+│       ├── test_index.py
+│       └── test_index_1.py
+└── uv.lock

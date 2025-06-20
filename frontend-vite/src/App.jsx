@@ -92,7 +92,11 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ initial_request: userRequest }),
+        body: JSON.stringify({
+          initial_request: userRequest,
+          provider: selectedProvider,
+          model: selectedModel,
+        }),
       });
 
       if (!response.ok) {
@@ -175,7 +179,7 @@ function App() {
             placeholder={mode === 'standard' ? "Enter your complete prompt here..." : "Enter your initial natural language request here to start PEA..."}
             disabled={loading}
           />
-          {mode === 'standard' && (
+          {(mode === 'standard' || (mode === 'pea' && !peaSessionId)) && (
             <div className="provider-model-selection">
               <label htmlFor="provider-select">Provider:</label>
               <select
@@ -247,6 +251,8 @@ function App() {
           sessionId={peaSessionId}
           initialMessage={peaInitialMessage}
           onFinalize={handleFinalizePrompt}
+          selectedProvider={selectedProvider}
+          selectedModel={selectedModel}
         />
       )}
 

@@ -12,7 +12,7 @@ if GEMINI_API_KEY:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
         model = genai.GenerativeModel(model_name="gemini-2.5-flash")
-        
+
         # Test a simple content generation
         print("Attempting a test content generation...")
         response = model.generate_content("Hello, world!")

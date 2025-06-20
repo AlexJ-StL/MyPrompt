@@ -1,12 +1,9 @@
 # Dev Docs
 ./.development_docs/*
 MyPrompt - Updates.txt
-MyPrompt Directory Tree L3.txt
-MyPrompt Directory Tree L4.txt
+MyPrompt New Prompt.md
 MyPrompt.txt
-
-#Void
-.voidrules
+Directory Tree - MyPrompt
 
 # Node.js
 node_modules/
@@ -30,6 +27,7 @@ Thumbs.db
 # IDE files
 .vscode/
 .idea/
+.voidrules
 
 # Build files
 /build/
@@ -41,3 +39,7 @@ Thumbs.db
 *.swp
 *.tmp
 
+# Early Files
+.early.coverage\*
+.early.coverage\python\coverage.json
+.early.json
