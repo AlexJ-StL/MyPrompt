@@ -190,8 +190,13 @@ def _generate_chat_response(
 
         # Google's `generate_content` expects a list of content, where each item has role and parts.
         # history is already in this format from `add_message_to_session`
+        # Ensure safety_settings is in the correct format
+        formatted_safety_settings = {
+            HarmCategory(k): HarmBlockThreshold(v) for k, v in safety_settings.items()
+        }
+
         response = model_instance.generate_content(
-            chat_history, safety_settings=safety_settings
+            chat_history, safety_settings=formatted_safety_settings
         )
         return response.text.strip()
 

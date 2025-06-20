@@ -43,6 +43,23 @@ class TestIndex:
         assert "Access-Control-Allow-Origin" in response.headers
         assert response.headers["Access-Control-Allow-Origin"] == "*"
 
+    @pytest.mark.happy_path
+    def test_index_returns_welcome_message(self, client):
+        """
+        Test that the root endpoint ('/') returns the expected welcome message.
+        """
+        response = client.get("/")
+        assert response.status_code == 200
+        assert response.data.decode("utf-8") == "MyPrompt Backend"
+
+    @pytest.mark.happy_path
+    def test_index_response_content_type(self, client):
+        """
+        Test that the root endpoint returns a response with 'text/html' content type.
+        """
+        response = client.get("/")
+        assert response.content_type.startswith("text/html")
+
     @pytest.mark.edge_case
     def test_index_route_method_not_allowed(self, client):
         """
@@ -57,6 +74,7 @@ class TestIndex:
         Edge Case: Ensure / and // both resolve correctly (Flask may redirect).
         """
         response = client.get("//")
+        assert response.status_code == 200
         # Flask will redirect to /, so status code should be 308 or 301
         assert response.status_code in (308, 301)
 
@@ -85,3 +103,37 @@ class TestIndex:
         assert response.status_code == 200
         # HEAD responses have no body
         assert not response.data
+
+    @pytest.mark.edge_case
+    def test_index_with_query_parameters(self, client):
+        """
+        Test that the root endpoint ignores query parameters and still returns the welcome message.
+        """
+        response = client.get("/?foo=bar&baz=qux")
+        assert response.status_code == 200
+        assert response.data.decode("utf-8") == "MyPrompt Backend"
+
+    @pytest.mark.edge_case
+    def test_index_with_post_method(self, client):
+        """
+        Test that the root endpoint does not allow POST requests and returns 405 Method Not Allowed.
+        """
+        response = client.post("/")
+        assert response.status_code == 405
+
+    @pytest.mark.edge_case
+    def test_index_with_unsupported_method(self, client):
+        """
+        Test that the root endpoint does not allow PUT requests and returns 405 Method Not Allowed.
+        """
+        response = client.put("/")
+        assert response.status_code == 405
+
+    @pytest.mark.edge_case
+    def test_index_with_headers(self, client):
+        """
+        Test that the root endpoint returns the same response even when custom headers are sent.
+        """
+        response = client.get("/", headers={"X-Test-Header": "test-value"})
+        assert response.status_code == 200
+        assert response.data.decode("utf-8") == "MyPrompt Backend"
