@@ -23,7 +23,7 @@ def client():
 def test_openai_provider_success(client):
     """Test successful OpenAI provider integration"""
     with (
-        patch.dict(os.environ, {"OPENAI_API_KEY": "dummy"}),
+        patch.dict(os.environ, {"OPENAI_API_KEY": ""}),
         patch("api.requests.post") as mock_post,
     ):
         mock_response = MagicMock()
@@ -45,7 +45,7 @@ def test_openai_provider_success(client):
 def test_anthropic_provider_success(client):
     """Test successful Anthropic provider integration"""
     with (
-        patch.dict(os.environ, {"ANTHROPIC_API_KEY": "dummy"}),
+        patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}),
         patch("api.requests.post") as mock_post,
     ):
         mock_response = MagicMock()
@@ -65,7 +65,7 @@ def test_anthropic_provider_success(client):
 def test_openai_fallback_key(client):
     """Test fallback to OPENAI_API_KEY for OpenAI-compatible providers"""
     with (
-        patch.dict(os.environ, {"OPENAI_API_KEY": "dummy"}),
+        patch.dict(os.environ, {"OPENAI_API_KEY": ""}),
         patch("api.requests.post") as mock_post,
     ):
         mock_response = MagicMock()

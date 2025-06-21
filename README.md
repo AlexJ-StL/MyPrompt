@@ -84,6 +84,7 @@ To set up and run MyPrompt, follow these steps:
     - For OpenAI-compatible providers (OpenRouter, Groq, Mistral), you can use your OpenAI API key as a fallback:
       ```bash
       OPENAI_API_KEY=your_openai_api_key_here
+      GOOGLE_API_KEY=your_google_api_key_here
       ```
     - For local providers (Ollama, LM Studio), you don't need API keys but need to run the respective applications
 

@@ -29,7 +29,7 @@ def test_start_pea_session_missing_api_key(client):
             content_type="application/json",
         )
         assert response.status_code == 500
-        assert "GOOGLE_API_KEY or OPENAI_API_KEY not set" in response.json["error"]
+        assert "API key not set" in response.json["error"]
 
 
 def test_pea_chat_invalid_session(client):
@@ -57,7 +57,7 @@ def test_finalize_prompt_invalid_session(client):
 def test_pea_chat_network_error(client, mocker):
     """Test network error during PEA chat returns 500"""
     with (
-        patch.dict(os.environ, {"GOOGLE_API_KEY": "dummy"}),
+        patch.dict(os.environ, {"GOOGLE_API_KEY": ""}),
         patch("api._generate_chat_response") as mock_generate,
     ):
         # First call returns successfully for session creation
@@ -89,7 +89,7 @@ def test_pea_chat_network_error(client, mocker):
 def test_finalize_prompt_timeout(client, mocker):
     """Test timeout during finalize prompt returns 500"""
     with (
-        patch.dict(os.environ, {"GOOGLE_API_KEY": "dummy"}),
+        patch.dict(os.environ, {"GOOGLE_API_KEY": ""}),
         patch("api._generate_chat_response") as mock_generate,
     ):
         # First call returns successfully for session creation
@@ -118,7 +118,7 @@ def test_finalize_prompt_timeout(client, mocker):
 def test_pea_session_value_error(client, mocker):
     """Test ValueError during PEA session returns 500"""
     with (
-        patch.dict(os.environ, {"GOOGLE_API_KEY": "dummy"}),
+        patch.dict(os.environ, {"GOOGLE_API_KEY": ""}),
         patch("api._generate_chat_response") as mock_generate,
     ):
         mock_generate.side_effect = ValueError("Invalid parameter")
@@ -136,7 +136,7 @@ def test_pea_session_value_error(client, mocker):
 def test_pea_session_key_error(client, mocker):
     """Test KeyError during PEA session returns 500"""
     with (
-        patch.dict(os.environ, {"GOOGLE_API_KEY": "dummy"}),
+        patch.dict(os.environ, {"GOOGLE_API_KEY": ""}),
         patch("api._generate_chat_response") as mock_generate,
     ):
         mock_generate.side_effect = KeyError("missing_key")

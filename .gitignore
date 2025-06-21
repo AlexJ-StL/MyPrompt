@@ -11,14 +11,17 @@ dist/
 *.log
 
 # Python
-__pycache__/*
+**/__pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-*.env
 .venv/
 *.egg-info/
+
+# Environment files
 .env
+.env.*
+!.env.example
 
 # System files
 .DS_Store
@@ -26,7 +29,6 @@ Thumbs.db
 
 # IDE files
 .vscode/
-.vscode/settings.json
 .idea/
 .voidrules
 
@@ -34,6 +36,11 @@ Thumbs.db
 /build/
 /coverage/
 /htmlcov/
+.coverage
+
+# Logs
+*.log
+logs/
 
 # Miscellaneous
 *.bak

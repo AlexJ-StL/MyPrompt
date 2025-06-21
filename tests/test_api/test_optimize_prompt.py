@@ -43,7 +43,7 @@ class TestOptimizePrompt:
         )
 
         with (
-            patch.dict(os.environ, {"GEMINI_API_KEY": test_api_key}),
+            patch.dict(os.environ, {"GOOGLE_API_KEY": test_api_key}),
             patch("api.genai.configure") as mock_configure,
             patch("api.genai.GenerativeModel") as mock_model_class,
         ):
@@ -146,7 +146,7 @@ class TestOptimizePrompt:
     @pytest.mark.edge_case
     def test_optimize_prompt_missing_api_key(self, client):
         """
-        Test that if GEMINI_API_KEY is not set, a 500 error is returned.
+        Test that if GOOGLE_API_KEY is not set, a 500 error is returned.
         """
         with patch.dict(os.environ, {}, clear=True):
             response = client.post(
@@ -168,7 +168,7 @@ class TestOptimizePrompt:
         error_message = "LLM API failure"
 
         with (
-            patch.dict(os.environ, {"GEMINI_API_KEY": test_api_key}),
+            patch.dict(os.environ, {"GOOGLE_API_KEY": test_api_key}),
             patch("api.genai.configure"),
             patch("api.genai.GenerativeModel") as mock_model_class,
         ):
@@ -250,7 +250,7 @@ class TestOptimizePrompt:
         Test handling of network errors during provider API call.
         """
         with (
-            patch.dict(os.environ, {"GEMINI_API_KEY": "dummy"}),
+            patch.dict(os.environ, {"GOOGLE_API_KEY": ""}),
             patch("api._generate_chat_response") as mock_generate,
         ):
             mock_generate.side_effect = requests.ConnectionError("Network down")
@@ -270,7 +270,7 @@ class TestOptimizePrompt:
         Test handling of KeyErrors when parsing provider response.
         """
         with (
-            patch.dict(os.environ, {"GEMINI_API_KEY": "dummy"}),
+            patch.dict(os.environ, {"GOOGLE_API_KEY": ""}),
             patch("api._generate_optimized_prompt_xml") as mock_generate,
         ):
             mock_generate.side_effect = KeyError("choices")
@@ -290,7 +290,7 @@ class TestOptimizePrompt:
         Test handling of request timeouts.
         """
         with (
-            patch.dict(os.environ, {"GEMINI_API_KEY": "dummy"}),
+            patch.dict(os.environ, {"GOOGLE_API_KEY": ""}),
             patch("api._generate_chat_response") as mock_generate,
         ):
             mock_generate.side_effect = TimeoutError("API timeout")
