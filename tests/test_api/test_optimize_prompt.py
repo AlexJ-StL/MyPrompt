@@ -1,12 +1,12 @@
 import sys
 import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-
-import pytest
+import requests
 import json
+import pytest
 from unittest.mock import patch, MagicMock
 from flask import Flask
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 # Import the blueprint and function to test
 from api import api_bp
@@ -18,7 +18,7 @@ def client():
     Fixture to create a Flask test client with the api blueprint registered.
     """
     app = Flask(__name__)
-    app.register_blueprint(api_bp)
+    app.register_blueprint(api_bp, url_prefix="/api")
     app.config["TESTING"] = True
     with app.test_client() as client:
         yield client
@@ -62,7 +62,7 @@ class TestOptimizePrompt:
             data = response.get_json()
             assert "optimized_prompt" in data
             assert data["optimized_prompt"] == test_llm_response
-            mock_configure.assert_called_once_with(api_key=test_api_key)
+            mock_configure.assert_called_once_with(api_key="test_api_key")
             mock_model_class.assert_called_once()
 
     @pytest.mark.happy_path
@@ -75,7 +75,7 @@ class TestOptimizePrompt:
         test_llm_response = "   <optimized_prompt>AI history...</optimized_prompt>   "
 
         with (
-            patch.dict(os.environ, {"GEMINI_API_KEY": test_api_key}),
+            patch.dict(os.environ, {"GOOGLE_API_KEY": test_api_key}),
             patch("api.genai.configure"),
             patch("api.genai.GenerativeModel") as mock_model_class,
         ):
@@ -85,7 +85,7 @@ class TestOptimizePrompt:
             mock_model_class.return_value = mock_model
 
             response = client.post(
-                "/optimize-prompt",
+                "/api/optimize-prompt",
                 data=json.dumps({"request": test_user_request}),
                 content_type="application/json",
             )
@@ -113,7 +113,7 @@ class TestOptimizePrompt:
         )  # Ensure the error response is JSON
         data = response.get_json()
         assert data is not None  # Ensure get_json() didn't return None
-        assert data["error"] == "No request provided"
+        assert data["error"] == "Invalid JSON format"
 
     @pytest.mark.edge_case
     def test_optimize_prompt_missing_request_field(self, client):
@@ -156,10 +156,7 @@ class TestOptimizePrompt:
             )
             assert response.status_code == 500
             data = response.get_json()
-            assert (
-                data["error"]
-                == "GOOGLE_API_KEY or OPENAI_API_KEY not set in environment"
-            )
+            assert data["error"] == "API key not set for provider: google"
 
     @pytest.mark.edge_case
     def test_optimize_prompt_genai_raises_exception(self, client):
@@ -188,7 +185,7 @@ class TestOptimizePrompt:
 
             assert response.status_code == 500
             data = response.get_json()
-            assert data["error"] == error_message
+            assert error_message in data["error"]
 
     @pytest.mark.edge_case
     def test_optimize_prompt_non_json_content_type(self, client):
@@ -207,8 +204,7 @@ class TestOptimizePrompt:
         data = response.get_json()
         assert data is not None
         assert (
-            data["error"]
-            == "Unsupported Media Type: Content-Type must be application/json"
+            data["error"] == "Unsupported Media Type: Must be application/json"
         )  # Or a similar appropriate message
 
     @pytest.mark.edge_case
@@ -224,3 +220,86 @@ class TestOptimizePrompt:
         assert response.status_code == 400
         data = response.get_json()
         assert data["error"] == "No request provided"
+
+    @pytest.mark.edge_case
+    def test_optimize_prompt_http_error(self, client, mocker):
+        """
+        Test handling of HTTP errors from provider API.
+        """
+        error_msg = "API quota exceeded"
+        mock_response = mocker.MagicMock()
+        mock_response.status_code = 429
+        mock_response.text = error_msg
+        http_error = requests.exceptions.HTTPError(response=mock_response)
+
+        with patch("api._generate_chat_response") as mock_generate:
+            mock_generate.side_effect = http_error
+
+            response = client.post(
+                "/api/optimize-prompt",
+                data=json.dumps({"request": "Test request"}),
+                content_type="application/json",
+            )
+
+            assert response.status_code == 429
+            assert error_msg in response.json["error"]
+
+    @pytest.mark.edge_case
+    def test_optimize_prompt_network_error(self, client, mocker):
+        """
+        Test handling of network errors during provider API call.
+        """
+        with (
+            patch.dict(os.environ, {"GEMINI_API_KEY": "dummy"}),
+            patch("api._generate_chat_response") as mock_generate,
+        ):
+            mock_generate.side_effect = requests.ConnectionError("Network down")
+
+            response = client.post(
+                "/api/optimize-prompt",
+                data=json.dumps({"request": "Test"}),
+                content_type="application/json",
+            )
+
+            assert response.status_code == 500
+            assert "Network error" in response.json["error"]
+
+    @pytest.mark.edge_case
+    def test_optimize_prompt_key_error(self, client, mocker):
+        """
+        Test handling of KeyErrors when parsing provider response.
+        """
+        with (
+            patch.dict(os.environ, {"GEMINI_API_KEY": "dummy"}),
+            patch("api._generate_optimized_prompt_xml") as mock_generate,
+        ):
+            mock_generate.side_effect = KeyError("choices")
+
+            response = client.post(
+                "/api/optimize-prompt",
+                data=json.dumps({"request": "Test"}),
+                content_type="application/json",
+            )
+
+            assert response.status_code == 500
+            assert "Unexpected response format" in response.json["error"]
+
+    @pytest.mark.edge_case
+    def test_optimize_prompt_timeout(self, client, mocker):
+        """
+        Test handling of request timeouts.
+        """
+        with (
+            patch.dict(os.environ, {"GEMINI_API_KEY": "dummy"}),
+            patch("api._generate_chat_response") as mock_generate,
+        ):
+            mock_generate.side_effect = TimeoutError("API timeout")
+
+            response = client.post(
+                "/api/optimize-prompt",
+                data=json.dumps({"request": "Test"}),
+                content_type="application/json",
+            )
+
+            assert response.status_code == 500
+            assert "Request timed out" in response.json["error"]

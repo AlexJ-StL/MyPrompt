@@ -38,7 +38,7 @@ PROVIDER_URLS = {
 PROVIDER_KEYS = {
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
-    "google": "GEMINI_API_KEY",
+    "google": "GOOGLE_API_KEY",  # Changed from GEMINI_API_KEY
     "openrouter": "OPENROUTER_API_KEY",
     "groq": "GROQ_API_KEY",
     "ollama": None,  # Typically doesn't require an API key
@@ -129,8 +129,13 @@ def _get_provider_api_key(provider_name: str) -> Optional[str]:
     Retrieves the API key for a given provider from environment variables.
     Handles fallback to OPENAI_API_KEY for OpenAI-compatible providers.
     """
-    api_key_env_var = f"{provider_name.upper()}_API_KEY"
-    api_key = os.getenv(api_key_env_var)
+    # Get the environment variable name from PROVIDER_KEYS
+    env_var_name = PROVIDER_KEYS.get(provider_name)
+    if not env_var_name:
+        # For providers that don't require an API key
+        return None
+
+    api_key = os.getenv(env_var_name)
 
     # Specific fallback for OpenAI-compatible providers
     if not api_key and provider_name in [
@@ -145,7 +150,7 @@ def _get_provider_api_key(provider_name: str) -> Optional[str]:
 
 
 def _generate_optimized_prompt_xml(
-    provider: str, model_name: Optional[str], api_key: str, user_request: str
+    provider: str, model_name: Optional[str], api_key: Optional[str], user_request: str
 ) -> str:
     """
     Generates an optimized XML prompt using the specified LLM provider.
@@ -170,7 +175,10 @@ def _generate_optimized_prompt_xml(
 
 
 def _generate_chat_response(
-    provider: str, model_name: Optional[str], api_key: str, chat_history: List[Dict]
+    provider: str,
+    model_name: Optional[str],
+    api_key: Optional[str],
+    chat_history: List[Dict],
 ) -> str:
     """
     Handles generating content through the appropriate API based on the provider,
@@ -181,6 +189,19 @@ def _generate_chat_response(
         # Use default model if none provided, or infer from context
         # (e.g., if a specific model was used to start the session)
         model_instance = genai.GenerativeModel(model_name=model_name or "gemini-pro")
+        # Convert messages to Google's expected format: [{"role": ..., "parts": [{"text": ...}]}]
+        formatted_history = []
+        for msg in chat_history:
+            if "content" in msg:
+                # Convert OpenAI-style message to Google-style
+                formatted_history.append(
+                    {"role": msg["role"], "parts": [{"text": msg["content"]}]}
+                )
+            else:
+                # Already in Google format
+                formatted_history.append(msg)
+
+        # Use enum objects directly with type ignore to bypass strict type checking
         safety_settings = {
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
             HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -188,15 +209,9 @@ def _generate_chat_response(
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
         }
 
-        # Google's `generate_content` expects a list of content, where each item has role and parts.
-        # history is already in this format from `add_message_to_session`
-        # Ensure safety_settings is in the correct format
-        formatted_safety_settings = {
-            HarmCategory(k): HarmBlockThreshold(v) for k, v in safety_settings.items()
-        }
-
+        # The type ignore comment will suppress the type checking error
         response = model_instance.generate_content(
-            chat_history, safety_settings=formatted_safety_settings
+            formatted_history, safety_settings=safety_settings  # type: ignore
         )
         return response.text.strip()
 
@@ -229,10 +244,12 @@ def _generate_chat_response(
 
         # Add API key header based on provider
         if provider == "anthropic":
-            headers["x-api-key"] = api_key
+            if api_key:
+                headers["x-api-key"] = api_key
             headers["anthropic-version"] = "2023-06-01"
         else:  # OpenAI-compatible
-            headers["Authorization"] = f"Bearer {api_key}"
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
 
         # Special headers for OpenRouter
         if provider == "openrouter":
@@ -302,15 +319,31 @@ def optimize_prompt():
     """
     logging.debug("optimize_prompt: Function entered.")
     try:
-        data = request.json
+        # Check content type
+        if not request.is_json:
+            logging.error("optimize_prompt: Request must be JSON")
+            return (
+                jsonify({"error": "Unsupported Media Type: Must be application/json"}),
+                415,
+            )
+
+        try:
+            data = request.get_json()
+        except Exception as e:
+            logging.error(f"optimize_prompt: JSON parsing failed: {str(e)}")
+            return jsonify({"error": "Invalid JSON format"}), 400
+
         logging.debug("optimize_prompt: Request JSON data received: {}".format(data))
         # Initial validation checks
         if not data:
             logging.error("optimize_prompt: No request body provided.")
-            return jsonify({"error": "Request body must be JSON"}), 400
-        if "request" not in data or not data["request"]:
-            logging.error("optimize_prompt: Missing or empty 'request' field.")
-            return jsonify({"error": "No 'request' field provided in JSON"}), 400
+            return jsonify({"error": "No request provided"}), 400
+        if "request" not in data:
+            logging.error("optimize_prompt: No request provided.")
+            return jsonify({"error": "No request provided"}), 400
+        if not data["request"]:
+            logging.error("optimize_prompt: No request provided.")
+            return jsonify({"error": "No request provided"}), 400
 
         user_request = data["request"]
         # Default to Google, ensure lowercase
@@ -321,6 +354,11 @@ def optimize_prompt():
         )
 
         # Retrieve API key
+        # Validate provider
+        if provider not in PROVIDER_KEYS:
+            logging.error(f"optimize_prompt: Invalid provider: {provider}")
+            return jsonify({"error": f"Invalid provider: {provider}"}), 400
+
         api_key = _get_provider_api_key(provider)
         # Log the API key value (first 5 chars for security)
         logging.debug(
@@ -328,21 +366,13 @@ def optimize_prompt():
             api_key[:5] if api_key else "None/Empty",
         )
 
-        if not api_key:
+        # Only require API key for providers that need it
+        if PROVIDER_KEYS[provider] is not None and not api_key:
             logging.error(
                 "optimize_prompt: API key not set for provider: {}".format(provider)
             )
-            return (
-                jsonify(
-                    {
-                        "error": (
-                            f"{provider.upper()}_API_KEY or OPENAI_API_KEY not set "
-                            "in environment"
-                        )
-                    }
-                ),
-                500,
-            )
+            error_msg = f"API key not set for provider: {provider}"
+            return jsonify({"error": error_msg}), 500
         logging.debug("optimize_prompt: API key retrieved successfully.")
 
         # Call the appropriate external API helper
@@ -364,46 +394,28 @@ def optimize_prompt():
 
     except ValueError as e:
         logging.exception("optimize_prompt: ValueError caught.")
-        # Catch errors from _generate_content_through_api or other logic
-        # 400 for bad request like unsupported provider or invalid model
         return jsonify({"error": str(e)}), 400
     except requests.exceptions.HTTPError as e:
         status_code = e.response.status_code if e.response is not None else 500
         logging.exception("optimize_prompt: HTTPError caught.")
-        return (
-            jsonify(
-                {
-                    "error": (
-                        f"Provider API returned an error: {e.response.text}"
-                        if e.response and e.response.text
-                        else f"Provider API returned an error: {e}"
-                    )
-                }
-            ),
-            status_code,
+        error_msg = (
+            f"Provider API returned an error: {e.response.text}"
+            if e.response and e.response.text
+            else f"Provider API error: {e}"
         )
+        return jsonify({"error": error_msg}), status_code
     except requests.RequestException as e:
         logging.exception("optimize_prompt: RequestException caught.")
-        return (
-            jsonify(
-                {
-                    "error": (
-                        f"Failed to communicate with provider API due to network or "
-                        f"request issue: {str(e)}"
-                    )
-                }
-            ),
-            500,
-        )
+        return jsonify({"error": f"Network error: {str(e)}"}), 500
     except KeyError as e:
         logging.exception("optimize_prompt: KeyError caught.")
-        return (
-            jsonify({"error": f"Unexpected API response format: Missing key {str(e)}"}),
-            500,
-        )
+        return jsonify({"error": f"Unexpected response format: {str(e)}"}), 500
     except TimeoutError as e:
         logging.exception("optimize_prompt: TimeoutError caught.")
-        return jsonify({"error": f"API call timed out: {str(e)}"}), 500
+        return jsonify({"error": f"Request timed out: {str(e)}"}), 500
+    except Exception as e:
+        logging.exception("optimize_prompt: Unexpected error caught.")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 
 # Temporary debug route in api.py
@@ -436,7 +448,7 @@ def start_pea_session():
                 jsonify(
                     {
                         "error": (
-                            f"{provider.upper()}_API_KEY or OPENAI_API_KEY not set "
+                            f"{PROVIDER_KEYS[provider]} or OPENAI_API_KEY not set "
                             "in environment for PEA mode."
                         )
                     }
@@ -471,6 +483,9 @@ def start_pea_session():
         return jsonify({"error": f"Key error: {str(e)}"}), 500
     except TimeoutError as e:
         return jsonify({"error": f"Timeout error: {str(e)}"}), 500
+    except Exception as e:
+        logging.exception(f"start_pea_session: Unexpected error: {str(e)}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 
 @api_bp.route("/pea/chat", methods=["POST"])
@@ -532,6 +547,9 @@ def pea_chat():
         return jsonify({"error": f"Key error: {str(e)}"}), 500
     except TimeoutError as e:
         return jsonify({"error": f"Timeout error: {str(e)}"}), 500
+    except Exception as e:
+        logging.exception(f"pea_chat: Unexpected error: {str(e)}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 
 @api_bp.route("/pea/finalize", methods=["POST"])
@@ -609,3 +627,6 @@ def finalize_prompt():
         return jsonify({"error": f"Key error: {str(e)}"}), 500
     except TimeoutError as e:
         return jsonify({"error": f"Timeout error: {str(e)}"}), 500
+    except Exception as e:
+        logging.exception(f"finalize_prompt: Unexpected error: {str(e)}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500

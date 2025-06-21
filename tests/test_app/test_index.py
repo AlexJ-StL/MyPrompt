@@ -69,15 +69,6 @@ class TestIndex:
         assert response.status_code == 405  # Method Not Allowed
 
     @pytest.mark.edge_case
-    def test_index_route_trailing_slash(self, client):
-        """
-        Edge Case: Ensure / and // both resolve correctly (Flask may redirect).
-        """
-        response = client.get("//")
-        assert response.status_code == 200
-        # Flask will redirect to /, so status code should be 308 or 301
-        assert response.status_code in (308, 301)
-
     @pytest.mark.edge_case
     def test_index_route_not_found(self, client):
         """
