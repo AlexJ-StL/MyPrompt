@@ -1,9 +1,10 @@
 # Dev Docs
-./.development_docs/*
-MyPrompt - Updates.txt
-MyPrompt New Prompt.md
-MyPrompt.txt
-Directory Tree - MyPrompt
+.development_docs/*
+.development_docs/Directory Tree - MyPrompt
+.development_docs/MyPrompt - Updates.txt
+.development_docs/MyPrompt New Prompt.md
+.development_docs/MyPrompt.txt
+.development_docs/Prompt - Test Addition and Coverage - MyPrompt.txt
 
 # Node.js
 node_modules/

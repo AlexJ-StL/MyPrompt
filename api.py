@@ -59,8 +59,8 @@ PROVIDER_MODELS = {
 }
 
 # In-memory storage for PEA conversations
-# Structure: {session_id: List[{'role': str, 'parts': List[{'text': str}]}]}
-pea_conversations: Dict[str, List[dict]] = {}
+# Structure: {session_id: {'history': List[{'role': str, 'parts': List[{'text': str}]}], 'provider': str, 'model': str}}
+pea_conversations: Dict[str, Dict] = {}
 
 # PEA system prompt
 PEA_SYSTEM_PROMPT = """# System Prompt: Prompt Engineering Assistant (PEA)
@@ -98,23 +98,27 @@ When the user signals they are finished and require the final prompt, you will g
 """
 
 
-def initialize_pea_session() -> str:
-    """Create a new PEA conversation session."""
+def initialize_pea_session(provider: str, model_name: Optional[str]) -> str:
+    """Create a new PEA conversation session, storing provider and model."""
     session_id = str(uuid.uuid4())
-    pea_conversations[session_id] = []
+    pea_conversations[session_id] = {
+        "history": [],
+        "provider": provider,
+        "model": model_name,
+    }
     return session_id
 
 
 def add_message_to_session(session_id: str, role: str, content: str) -> None:
     """Add a message to the conversation history in the correct format for the API."""
     if session_id in pea_conversations:
-        pea_conversations[session_id].append(
+        pea_conversations[session_id]["history"].append(
             {"role": role, "parts": [{"text": content}]}
         )
 
 
-def get_session_history(session_id: str) -> Optional[List[dict]]:
-    """Retrieve the conversation history for a session."""
+def get_session_data(session_id: str) -> Optional[Dict]:
+    """Retrieve the full session data (history, provider, model) for a session."""
     return pea_conversations.get(session_id)
 
 
@@ -456,18 +460,20 @@ def start_pea_session():
                 500,
             )
 
-        # Create new session
-        session_id = initialize_pea_session()
+        # Create new session, storing provider and model
+        session_id = initialize_pea_session(provider, model_name)
 
         # Add the system prompt and then the initial user request
         add_message_to_session(session_id, "system", PEA_SYSTEM_PROMPT)
         add_message_to_session(session_id, "user", initial_request)
 
         # Get PEA's first response (the model's turn)
-        history = get_session_history(session_id)
+        session_data = get_session_data(session_id)
+        history = session_data["history"] if session_data else []
+
         # Pass the history to the generic chat response function
         pea_response_content = _generate_chat_response(
-            provider, model_name, api_key, history or []
+            provider, model_name, api_key, history
         )
 
         # Add PEA's response to history with role 'model'
@@ -504,15 +510,23 @@ def pea_chat():
 
         logging.debug("pea_chat: Provider: %s, Model: %s", provider, model_name)
 
-        # Verify session exists
-        history = get_session_history(session_id)
-        if not history:
+        # Verify session exists and get session data
+        session_data = get_session_data(session_id)
+        if not session_data:
             return jsonify({"error": "Invalid session ID"}), 400
+
+        # Use provider and model from session if not provided in current request
+        current_provider = data.get("provider", session_data["provider"]).lower()
+        current_model_name = data.get("model", session_data["model"])
+
+        logging.debug(
+            "pea_chat: Provider: %s, Model: %s", current_provider, current_model_name
+        )
 
         # Add user message to history
         add_message_to_session(session_id, "user", user_message)
 
-        api_key = _get_provider_api_key(provider)
+        api_key = _get_provider_api_key(current_provider)
         if not api_key:
             return (
                 jsonify(
@@ -527,11 +541,10 @@ def pea_chat():
             )
 
         # Get PEA's response using the new helper
-        history = get_session_history(
-            session_id
-        )  # Re-fetch history after adding user message
+        # Re-fetch history after adding user message
+        history = session_data["history"]
         pea_response_content = _generate_chat_response(
-            provider, model_name, api_key, history or []
+            current_provider, current_model_name, api_key, history
         )
 
         # Add PEA's response to history with role 'model'
@@ -576,12 +589,22 @@ def finalize_prompt():
 
         logging.debug("finalize_prompt: Provider: %s, Model: %s", provider, model_name)
 
-        # Verify session exists
-        history = get_session_history(session_id)
-        if not history:
+        # Verify session exists and get session data
+        session_data = get_session_data(session_id)
+        if not session_data:
             return jsonify({"error": "Invalid session ID"}), 400
 
-        api_key = _get_provider_api_key(provider)
+        # Use provider and model from session if not provided in current request
+        current_provider = data.get("provider", session_data["provider"]).lower()
+        current_model_name = data.get("model", session_data["model"])
+
+        logging.debug(
+            "finalize_prompt: Provider: %s, Model: %s",
+            current_provider,
+            current_model_name,
+        )
+
+        api_key = _get_provider_api_key(current_provider)
         if not api_key:
             return (
                 jsonify(
@@ -602,11 +625,9 @@ def finalize_prompt():
         add_message_to_session(session_id, "user", finalize_instruction)
 
         # Get final XML prompt using the new helper
-        history = get_session_history(
-            session_id
-        )  # Re-fetch history after adding instruction
+        history = session_data["history"]  # Re-fetch history after adding instruction
         final_prompt_content = _generate_chat_response(
-            provider, model_name, api_key, history or []
+            current_provider, current_model_name, api_key, history
         )
 
         # Clean any markdown code block wrappers from the response
