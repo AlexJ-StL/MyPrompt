@@ -10,6 +10,8 @@ from typing import Dict, List, Optional
 import logging
 import requests
 from flask import Blueprint, request, jsonify
+from providers.provider_base import ProviderBase
+from providers.provider_base import ProviderBase
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 import google.generativeai as genai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory

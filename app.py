@@ -1,6 +1,12 @@
 from flask import Flask, jsonify, g
 from api import api_bp
-from provider_registry import ProviderRegistry
+from providers.provider_registry import ProviderRegistry
+from providers.provider_openai import OpenAiProvider  # Corrected capitalization
+from providers.provider_anthropic import AnthropicProvider
+from providers.provider_google import GoogleProvider
+from providers.provider_openr import (
+    OpenRouterProvider,
+)  # Match exact class name capitalization
 from dotenv import load_dotenv
 import logging
 
@@ -10,12 +16,16 @@ app = Flask(__name__)
 app.register_blueprint(api_bp, url_prefix="/api")
 
 PROVIDERS = [
-    SomeProviderClass("openai"),
-    SomeProviderClass("anthropic"),
-    SomeProviderClass("google"),
-    SomeProviderClass("openrouter"),
+    OpenAiProvider(model_name="gpt-4"),  # Match exact class name capitalization
+    AnthropicProvider(model_name="claude-3-opus"),
+    GoogleProvider(model_name="gemini-pro"),
+    OpenRouterProvider(model_name="google/gemini-pro"),
 ]
-provider_registry = ProviderRegistry(*PROVIDERS)
+
+# Remove any remaining references to SomeProviderClass
+provider_registry = ProviderRegistry(
+    PROVIDERS
+)  # Pass list directly instead of unpacking
 
 
 @app.before_request
