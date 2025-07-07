@@ -63,7 +63,7 @@ class ProviderBase(abc.ABC):
         """
         Fetches API key from environment, using fallback if available
         """
-        api_key = os.get(self.key_env_var)
+        api_key = os.getenv(self.key_env_var)
         if not api_key and self.fallback_env_var:
             api_key = os.getenv(self.fallback_env_var)
         if not api_key:

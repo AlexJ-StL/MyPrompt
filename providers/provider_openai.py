@@ -1,5 +1,6 @@
 """OpenAI Provider Interface Implementation"""
 
+import requests
 from providers.provider_base import ProviderBase
 
 
@@ -15,7 +16,7 @@ class OpenAiProvider(ProviderBase):
     key_env_var = "OPENAI_API_KEY"
     base_url = "https://api.openai.com/v1/chat/completions"
     max_tokens = 4000
-    model_base = "gpt-4"  # Default can be overriden by config
+    model_base = "o4-mini"  # Default can be overriden by config
 
     def _get_default_model(self) -> str:
         """Returns the default model, can be set via env"""
@@ -36,15 +37,17 @@ class OpenAiProvider(ProviderBase):
             processed.append({"role": role, "content": content})
         return processed
 
-    def _make_request(self, data: dict) -> dict:
+    def _make_request(self, data: dict) -> requests.Response:
         """Executes the API request with proper authorization"""
-        headers = {"Authorization": f"Bearer {self.api_key}"}
-        url = self.base_url.format(model=model)
-        response = requests.post(url, headers=headers, json=data)
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        response = requests.post(self.base_url, headers=headers, json=data, timeout=30)
         response.raise_for_status()
-        return response.json()
+        return response
 
-    def generate_response(self, history: list[dict]) -> str:
+    def generate_content(self, history: list[dict]) -> str:
         """Generates a response using the provider-formatted history"""
         formatted = self.format_messages(history)
         payload = {

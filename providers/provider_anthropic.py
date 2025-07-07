@@ -13,7 +13,7 @@ class AnthropicProvider(ProviderBase):
         url = "https://api.anthropic.com/v1/messages"
         headers = {"x-api-key": self.api_key, "Content-Type": "application/json"}
         payload = {
-            "model": "claude-3-opus-20240229",
+            "model": "claude-4-sonnet",
             "max_tokens": max_tokens,
             "messages": [
                 {"role": "user", "content": message},
