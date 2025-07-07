@@ -11,6 +11,7 @@ MyPrompt/
 │   └── test_gemini_api.cpython-313-pytest-8.4.0.pyc
 ├── api.py
 ├── app.py
+├── app_factory.py
 ├── frontend-vite/
 │   ├── dist/
 │   │   ├── assets/
@@ -192,10 +193,12 @@ MyPrompt/
 │   │   ├── main.jsx
 │   │   └── PEAChat.jsx
 │   └── vite.config.js
-├── provider_anthropic.py
-├── provider_base.py
-├── provider_generic.py
 ├── providers/
+│   ├── provider_anthropic.py
+│   ├── provider_base.py
+│   ├── provider_generic.py
+│   ├── provider_openai.py
+│   └── provider_registry.py
 ├── pyproject.toml
 ├── README.md
 ├── tests/

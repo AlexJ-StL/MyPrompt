@@ -1,6 +1,6 @@
 """OpenAI Provider Interface Implementation"""
 
-from .provider_base import ProviderBase
+from providers.provider_base import ProviderBase
 
 
 class OpenAiProvider(ProviderBase):

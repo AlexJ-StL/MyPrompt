@@ -1,7 +1,7 @@
 import os
 import logging
 
-from provider_base import ProviderBase
+from providers.provider_base import ProviderBase
 
 
 class ProviderRegistry:

@@ -4,7 +4,7 @@ Defines the Generic Provider class for OpenAI-compatible APIs
 
 from typing import List, Dict, Optional
 import requests
-from .provider_base import ProviderBase
+from providers.provider_base import ProviderBase
 
 
 class GenericProvider(ProviderBase):
