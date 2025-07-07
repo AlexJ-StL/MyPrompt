@@ -109,12 +109,14 @@ def initialize_pea_session(provider: str, model_name: Optional[str]) -> str:
     return session_id
 
 
-def add_message_to_session(session_id: str, role: str, content: str) -> None:
-    """Add a message to the conversation history in the correct format for the API."""
+def add_message_to_session(
+    session_id: str, role: str, content: str, provider: ProviderBase
+) -> None:
+    """Add a message to the conversation history in the provider's expected format."""
     if session_id in pea_conversations:
-        pea_conversations[session_id]["history"].append(
-            {"role": role, "parts": [{"text": content}]}
-        )
+        # Use provider's message format method
+        message = provider.format_message(role, content)
+        pea_conversations[session_id]["history"].append(message)
 
 
 def get_session_data(session_id: str) -> Optional[Dict]:
@@ -128,29 +130,12 @@ def clear_session(session_id: str) -> None:
         del pea_conversations[session_id]
 
 
+# Removed redundant API key handling - moved to provider classes
 def _get_provider_api_key(provider_name: str) -> Optional[str]:
-    """
-    Retrieves the API key for a given provider from environment variables.
-    Handles fallback to OPENAI_API_KEY for OpenAI-compatible providers.
-    """
-    # Get the environment variable name from PROVIDER_KEYS
-    env_var_name = PROVIDER_KEYS.get(provider_name)
-    if not env_var_name:
-        # For providers that don't require an API key
-        return None
-
-    api_key = os.getenv(env_var_name)
-
-    # Specific fallback for OpenAI-compatible providers
-    if not api_key and provider_name in [
-        "openrouter",
-        "groq",
-        "mistral",
-        "ollama",
-        "lmstudio",
-    ]:
-        api_key = os.getenv("OPENAI_API_KEY")
-    return api_key
+    """Use provider-native key lookup via PROVIDER_KEYS env vars"""
+    # DEPRECATED after provider-native implementation
+    # Old value was PROVIDER_KEYS.get(provider_name)
+    return None
 
 
 def _generate_optimized_prompt_xml(
@@ -350,73 +335,41 @@ def optimize_prompt():
             return jsonify({"error": "No request provided"}), 400
 
         user_request = data["request"]
-        # Default to Google, ensure lowercase
-        provider = data.get("provider", "google").lower()
-        model_name = data.get("model")  # Optional: model name for the provider
-        logging.debug(
-            "optimize_prompt: Provider: {}, Model: {}".format(provider, model_name)
+
+        # Retrieve provider from Flask context (assuming it's set in before_request)
+        selected_provider = flask.g.providers.get(
+            data.get("provider", "google").lower()
         )
+        if not selected_provider:
+            logging.error("optimize_prompt: Invalid provider specified")
+            return jsonify({"error": "Invalid provider specified"}), 400
 
-        # Retrieve API key
-        # Validate provider
-        if provider not in PROVIDER_KEYS:
-            logging.error(f"optimize_prompt: Invalid provider: {provider}")
-            return jsonify({"error": f"Invalid provider: {provider}"}), 400
+        model_name = data.get("model") or selected_provider.get_default_model()
+        if not model_name:
+            logging.error("optimize_prompt: Model name not provided and no default")
+            return jsonify({"error": "Model name not provided and no default"}), 400
 
-        api_key = _get_provider_api_key(provider)
-        # Log the API key value (first 5 chars for security)
         logging.debug(
-            "optimize_prompt: Retrieved API key (first 5 chars): %s",
-            api_key[:5] if api_key else "None/Empty",
-        )
-
-        # Only require API key for providers that need it
-        if PROVIDER_KEYS[provider] is not None and not api_key:
-            logging.error(
-                "optimize_prompt: API key not set for provider: {}".format(provider)
+            "optimize_prompt: Selected provider: {}, Model: {}".format(
+                selected_provider.name, model_name
             )
-            error_msg = f"API key not set for provider: {provider}"
-            return jsonify({"error": error_msg}), 500
-        logging.debug("optimize_prompt: API key retrieved successfully.")
-
-        # Call the appropriate external API helper
-        logging.debug("optimize_prompt: Calling _generate_optimized_prompt_xml...")
-        optimized_prompt_xml = _generate_optimized_prompt_xml(
-            provider, model_name, api_key, user_request
-        )
-        logging.debug(
-            "optimize_prompt: _generate_optimized_prompt_xml returned successfully."
         )
 
-        # Clean any markdown code block wrappers from the response
+        # Call the provider's generate_response with history
+        messages = [{"role": "user", "content": user_request}]
+        response_content = selected_provider.generate_response(messages)
+
+        # Clean response and return
         optimized_prompt_xml = (
-            optimized_prompt_xml.replace("```xml", "").replace("```", "").strip()
+            response_content.replace("```xml", "").replace("```", "").strip()
         )
-
-        logging.debug("optimize_prompt: Returning optimized prompt.")
         return jsonify({"optimized_prompt": optimized_prompt_xml})
 
     except ValueError as e:
         logging.exception("optimize_prompt: ValueError caught.")
         return jsonify({"error": str(e)}), 400
     except requests.exceptions.HTTPError as e:
-        status_code = e.response.status_code if e.response is not None else 500
-        logging.exception("optimize_prompt: HTTPError caught.")
-        error_msg = (
-            f"Provider API returned an error: {e.response.text}"
-            if e.response and e.response.text
-            else f"Provider API error: {e}"
-        )
-        return jsonify({"error": error_msg}), status_code
-    except requests.RequestException as e:
-        logging.exception("optimize_prompt: RequestException caught.")
-        return jsonify({"error": f"Network error: {str(e)}"}), 500
-    except KeyError as e:
-        logging.exception("optimize_prompt: KeyError caught.")
-        return jsonify({"error": f"Unexpected response format: {str(e)}"}), 500
-    except TimeoutError as e:
-        logging.exception("optimize_prompt: TimeoutError caught.")
-        return jsonify({"error": f"Request timed out: {str(e)}"}), 500
+        return jsonify({"error": f"HTTP error: {e}"}), 500
     except Exception as e:
         logging.exception("optimize_prompt: Unexpected error caught.")
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500

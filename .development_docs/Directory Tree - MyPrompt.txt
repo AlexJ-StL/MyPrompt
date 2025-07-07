@@ -192,12 +192,18 @@ MyPrompt/
 │   │   ├── main.jsx
 │   │   └── PEAChat.jsx
 │   └── vite.config.js
+├── provider_anthropic.py
+├── provider_base.py
+├── provider_generic.py
+├── providers/
 ├── pyproject.toml
 ├── README.md
 ├── tests/
 │   ├── __pycache__/
 │   │   ├── conftest.cpython-312-pytest-8.3.5.pyc
-│   │   └── conftest.cpython-313-pytest-8.3.5.pyc
+│   │   ├── conftest.cpython-313-pytest-8.3.5.pyc
+│   │   ├── conftest.cpython-313-pytest-8.4.0.pyc
+│   │   └── conftest.cpython-313-pytest-8.4.1.pyc
 │   ├── conftest.py
 │   ├── test_api/
 │   │   ├── __init__.py
