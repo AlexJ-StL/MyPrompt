@@ -1,14 +1,16 @@
 import os
 import sys
 import pytest
-from unittest.mock import patch, MagicMock
-from flask import Flask
+from unittest.mock import patch, MagicMock, ANY
+from flask import Flask, g
 
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from app import app
-from api import api_bp, pea_conversations
+from api import api_bp, pea_conversations, initialize_pea_session, add_message_to_session
+from providers.provider_base import ProviderBase
+from unittest.mock import ANY  # Add this import
 
 # Set test environment variables
 os.environ["GOOGLE_API_KEY"] = "test_api_key"
@@ -46,67 +48,86 @@ def mock_genai():
         yield mock_model_instance
 
 
-def test_optimize_prompt(client, mock_genai):
-    """Test /api/optimize-prompt endpoint with proper API key handling"""
+def test_optimize_prompt(client, mock_provider):
+    """Test /api/optimize-prompt endpoint with provider integration"""
     response = client.post(
         "/api/optimize-prompt",
-        json={"request": "Test request", "provider": "google"},
+        json={"request": "Test request", "provider": "google"}
     )
+    
     assert response.status_code == 200
     data = response.get_json()
     assert "optimized_prompt" in data
-    assert (
-        data["optimized_prompt"]
-        == "<optimized_prompt>Test optimized prompt</optimized_prompt>"
+    mock_provider.generate_response.assert_called_once_with(
+        [{"role": "user", "content": "Test request"}]
     )
 
 
-def test_start_pea_session(client, mock_genai):
+def test_start_pea_session(client, mock_provider):
     """Test /api/pea/start endpoint with session initialization"""
+    mock_provider.generate_response.return_value = "Test PEA response"
+    
     response = client.post(
-        "/api/pea/start", json={"initial_request": "Test initial request"}
+        "/api/pea/start",
+        json={"initial_request": "Test initial request", "provider": "google"}
     )
+    
     assert response.status_code == 200
     data = response.get_json()
     assert "session_id" in data
     assert "response" in data
     session_id = data["session_id"]
     assert session_id in pea_conversations
+    mock_provider.generate_response.assert_called_once()
 
 
-def test_pea_chat(client, mock_genai):
+def test_pea_chat(client, mock_provider):
     """Test /api/pea/chat endpoint with session continuation"""
+    mock_provider.generate_response.side_effect = [
+        "First response",
+        "Second response"
+    ]
+    
     # Start a session
     start_response = client.post(
-        "/api/pea/start", json={"initial_request": "Test initial request"}
+        "/api/pea/start",
+        json={"initial_request": "Test initial request", "provider": "google"}
     )
-    start_data = start_response.get_json()
-    session_id = start_data["session_id"]
+    session_id = start_response.json["session_id"]
 
     # Send chat message
     response = client.post(
-        "/api/pea/chat", json={"session_id": session_id, "message": "Test message"}
+        "/api/pea/chat",
+        json={"session_id": session_id, "message": "Test message"}
     )
+    
     assert response.status_code == 200
     data = response.get_json()
     assert "response" in data
+    assert mock_provider.generate_response.call_count == 2
 
 
-def test_finalize_prompt(client, mock_genai):
+def test_finalize_prompt(client, mock_provider):
     """Test /api/pea/finalize endpoint with prompt generation"""
+    mock_provider.generate_response.side_effect = [
+        "Initial response",
+        "<optimized_prompt>Final XML</optimized_prompt>"
+    ]
+    
     # Start a session
     start_response = client.post(
-        "/api/pea/start", json={"initial_request": "Test initial request"}
+        "/api/pea/start",
+        json={"initial_request": "Test initial request", "provider": "google"}
     )
-    start_data = start_response.get_json()
-    session_id = start_data["session_id"]
+    session_id = start_response.json["session_id"]
 
     # Finalize prompt
     response = client.post("/api/pea/finalize", json={"session_id": session_id})
     assert response.status_code == 200
     data = response.get_json()
     assert "final_prompt" in data
-    assert session_id not in pea_conversations  # Session should be cleared
+    assert session_id not in pea_conversations
+    mock_provider.generate_response.assert_called_with(ANY)  # Verify final call
 
 
 @patch("api.genai.GenerativeModel")
@@ -184,21 +205,17 @@ def test_optimize_prompt_empty_request(client):
     assert response.json == {"error": "No request provided"}
 
 
-@patch("api.genai.GenerativeModel")
-@patch("api.os.getenv")
-def test_optimize_prompt_api_error(mock_getenv, mock_GenerativeModel, client):
-    mock_getenv.return_value = "fake_api_key"
-    mock_model_instance = MagicMock()
-    mock_GenerativeModel.return_value = mock_model_instance
-    mock_model_instance.generate_content.side_effect = Exception("API Error")
-
-    response = client.post("/api/optimize-prompt", json={"request": "test request"})
-
+def test_optimize_prompt_provider_error(client, mock_provider):
+    """Test provider error handling"""
+    mock_provider.generate_response.side_effect = Exception("API Error")
+    
+    response = client.post(
+        "/api/optimize-prompt",
+        json={"request": "Test error", "provider": "google"}
+    )
+    
     assert response.status_code == 500
     assert "API Error" in response.json["error"]
-    mock_getenv.assert_called_once_with("GOOGLE_API_KEY")
-    mock_GenerativeModel.assert_called_once()
-    mock_model_instance.generate_content.assert_called_once()
 
 
 # PEA Tests
