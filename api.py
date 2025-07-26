@@ -9,6 +9,7 @@ import uuid
 from typing import Dict, List, Optional
 import logging
 import requests
+import flask
 from flask import Blueprint, request, jsonify
 from providers.provider_base import ProviderBase
 from providers.provider_base import ProviderBase
@@ -296,7 +297,7 @@ def _generate_chat_response(
 
 
 @api_bp.route("/optimize-prompt", methods=["POST"])
-def optimize_prompt():
+async def optimize_prompt():
     """
     Optimizes a user's prompt by sending it to a selected language model provider.
 
@@ -339,7 +340,7 @@ def optimize_prompt():
         user_request = data["request"]
 
         # Retrieve provider from Flask context (assuming it's set in before_request)
-        selected_provider = flask.g.providers.get(
+        selected_provider = await flask.g.providers.get(
             data.get("provider", "google").lower()
         )
         if not selected_provider:
@@ -359,7 +360,7 @@ def optimize_prompt():
 
         # Call the provider's generate_response with history
         messages = [{"role": "user", "content": user_request}]
-        response_content = selected_provider.generate_response(messages)
+        response_content = selected_provider.generate_content(messages)
 
         # Clean response and return
         optimized_prompt_xml = (
@@ -385,7 +386,7 @@ def debug_pea_route(subpath):
 
 
 @api_bp.route("/pea/start", methods=["POST"])
-def start_pea_session():
+async def start_pea_session():
     """Initialize a new PEA conversation session and get the first response."""
     try:
         data = request.json
@@ -450,7 +451,7 @@ def start_pea_session():
 
 
 @api_bp.route("/pea/chat", methods=["POST"])
-def pea_chat():
+async def pea_chat():
     """Handle ongoing PEA conversation."""
     try:
         data = request.json
@@ -521,7 +522,7 @@ def pea_chat():
 
 
 @api_bp.route("/pea/finalize", methods=["POST"])
-def finalize_prompt():
+async def finalize_prompt():
     """
     Finalizes the prompt generation process for a given session.
 

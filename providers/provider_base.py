@@ -33,6 +33,7 @@ class ProviderBase(abc.ABC):
         # Models are either a dict of models or a string
         # e.g. "mistral" or ["all" models]
         self.models = []
+        self.name = self.__class__.__name__.lower().replace("provider", "")
 
         # If no model_name is provided, get default from class property
         if not model_name:
@@ -71,6 +72,10 @@ class ProviderBase(abc.ABC):
             return None
         return api_key
 
+    def is_api_key_valid(self) -> bool:
+        """Checks if the API key is set."""
+        return self.api_key is not None
+
     @classmethod
     @abc.abstractmethod
     def _get_default_model(cls) -> str:
@@ -91,32 +96,3 @@ class ProviderBase(abc.ABC):
         raise NotImplementedError(
             "Concrete providers must implement the full API workflow"
         )
-
-
-class GoogleProvider(ProviderBase):
-    """
-    Implementation of the Google provider interface using GenerativeAI API.
-
-    Handles Google-specific API features like safety settings.
-    Inherits base error handling and message conversion logic.
-    """
-
-    key_env_var = "GOOGLE_API_KEY"
-
-    @classmethod
-    def _get_default_model(cls) -> str:
-        return "gemini-pro"
-
-    def _make_request(self, url: str, payload: Dict) -> requests.Response:
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        # Google Generative AI service requires a specific URL structure
-        complete_url = f"{self.base_url}/{self.model_name}:generateContent"
-        response = requests.post(
-            complete_url, headers=headers, json=payload, timeout=30
-        )
-        response.raise_for_status()
-        return response
-
-    # Implement remaining ProviderBase methods per Google's API structure...

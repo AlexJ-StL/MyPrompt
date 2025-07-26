@@ -23,9 +23,7 @@ PROVIDERS = [
 ]
 
 # Remove any remaining references to SomeProviderClass
-provider_registry = ProviderRegistry(
-    PROVIDERS
-)  # Pass list directly instead of unpacking
+provider_registry = ProviderRegistry(*PROVIDERS)
 
 
 @app.before_request

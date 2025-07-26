@@ -1,24 +1,45 @@
 from providers.provider_base import ProviderBase
-
+from typing import List, Dict
+import requests
+import google.generativeai as genai
+from google.generativeai.types import HarmBlockThreshold, HarmCategory
 
 class GoogleProvider(ProviderBase):
-    API_KEY_ENV = "GOOGLE_API_KEY"
+    key_env_var = "GOOGLE_API_KEY"
 
-    def __init__(self, api_key):
-        if not api_key:
-            raise ValueError("The API key is required to create a Google provider.")
-        self.api_key = api_key
+    def _get_default_model(self) -> str:
+        return "gemini-pro"
 
-    def call(self, message):
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
+    def format_messages(self, chat_history: List[Dict]) -> List[Dict]:
+        # Google's API uses a different format for messages
+        formatted_history = []
+        for msg in chat_history:
+            if "content" in msg:
+                formatted_history.append(
+                    {"role": msg["role"], "parts": [{"text": msg["content"]}]}
+                )
+            else:
+                formatted_history.append(msg)
+        return formatted_history
+
+    def _make_request(self, url: str, data: Dict) -> requests.Response:
+        # This method is not directly used by generate_content in this provider
+        # but is required by the abstract base class.
+        pass
+
+    def generate_content(self, chat_history: List[Dict]) -> str:
+        genai.configure(api_key=self.api_key)
+        model_instance = genai.GenerativeModel(model_name=self.model_name or self._get_default_model())
+        formatted_history = self.format_messages(chat_history)
+
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
         }
-        url = f"{self.base_url}/generateContent"
-        data = message.convert()
-        try:
-            response = requests.post(url, headers=headers, json=data)
-            return response.json()
-        except Exception as e:
-            logging.error(f"Google provider call failed: {e}")
-            return {"Error": str(e)}
+
+        response = model_instance.generate_content(
+            formatted_history, safety_settings=safety_settings
+        )
+        return response.text.strip()

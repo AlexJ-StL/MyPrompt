@@ -30,8 +30,8 @@ class TestIndex:
         """
         response = client.get("/")
         assert response.status_code == 200
-        assert response.data == b"MyPrompt Backend"
-        assert response.mimetype == "text/html"
+        assert response.json == {"ping": "pong"}
+        assert response.mimetype == "application/json"
 
     @pytest.mark.happy_path
     def test_index_route_allows_cors(self, client):
@@ -50,15 +50,15 @@ class TestIndex:
         """
         response = client.get("/")
         assert response.status_code == 200
-        assert response.data.decode("utf-8") == "MyPrompt Backend"
+        assert response.json == {"ping": "pong"}
 
     @pytest.mark.happy_path
     def test_index_response_content_type(self, client):
         """
-        Test that the root endpoint returns a response with 'text/html' content type.
+        Test that the root endpoint returns a response with 'application/json' content type.
         """
         response = client.get("/")
-        assert response.content_type.startswith("text/html")
+        assert response.content_type.startswith("application/json")
 
     @pytest.mark.edge_case
     def test_index_route_method_not_allowed(self, client):
@@ -102,7 +102,7 @@ class TestIndex:
         """
         response = client.get("/?foo=bar&baz=qux")
         assert response.status_code == 200
-        assert response.data.decode("utf-8") == "MyPrompt Backend"
+        assert response.json == {"ping": "pong"}
 
     @pytest.mark.edge_case
     def test_index_with_post_method(self, client):
@@ -127,4 +127,4 @@ class TestIndex:
         """
         response = client.get("/", headers={"X-Test-Header": "test-value"})
         assert response.status_code == 200
-        assert response.data.decode("utf-8") == "MyPrompt Backend"
+        assert response.json == {"ping": "pong"}

@@ -27,11 +27,24 @@ def clear_conversations():
 
 @pytest.fixture
 def client():
-    """Create test client with API blueprint."""
+    """Create test client with API blueprint and application context."""
     app = Flask(__name__)
     app.register_blueprint(api_bp, url_prefix="/api")
     app.config["TESTING"] = True
-    return app.test_client()
+    with app.app_context():
+        with app.test_client() as client:
+            yield client
+
+
+@pytest.fixture
+def mock_provider(client):
+    """Mock the ProviderBase class and its methods within an app context."""
+    with patch("flask.g") as mock_g:
+        mock_provider_instance = MagicMock(spec=ProviderBase)
+        mock_provider_instance.name = "google"
+        mock_provider_instance.generate_content.return_value = "<optimized_prompt>Test optimized prompt</optimized_prompt>"
+        mock_g.providers.get.return_value = mock_provider_instance
+        yield mock_provider_instance
 
 
 @pytest.fixture(autouse=True)
@@ -58,14 +71,14 @@ def test_optimize_prompt(client, mock_provider):
     assert response.status_code == 200
     data = response.get_json()
     assert "optimized_prompt" in data
-    mock_provider.generate_response.assert_called_once_with(
+    mock_provider.generate_content.assert_called_once_with(
         [{"role": "user", "content": "Test request"}]
     )
 
 
 def test_start_pea_session(client, mock_provider):
     """Test /api/pea/start endpoint with session initialization"""
-    mock_provider.generate_response.return_value = "Test PEA response"
+    mock_provider.generate_content.return_value = "Test PEA response"
     
     response = client.post(
         "/api/pea/start",
@@ -78,12 +91,12 @@ def test_start_pea_session(client, mock_provider):
     assert "response" in data
     session_id = data["session_id"]
     assert session_id in pea_conversations
-    mock_provider.generate_response.assert_called_once()
+    mock_provider.generate_content.assert_called_once()
 
 
 def test_pea_chat(client, mock_provider):
     """Test /api/pea/chat endpoint with session continuation"""
-    mock_provider.generate_response.side_effect = [
+    mock_provider.generate_content.side_effect = [
         "First response",
         "Second response"
     ]
@@ -98,18 +111,18 @@ def test_pea_chat(client, mock_provider):
     # Send chat message
     response = client.post(
         "/api/pea/chat",
-        json={"session_id": session_id, "message": "Test message"}
+        json={"session_id": session_id, "message": "Test message", "provider": "google"}
     )
     
     assert response.status_code == 200
     data = response.get_json()
     assert "response" in data
-    assert mock_provider.generate_response.call_count == 2
+    assert mock_provider.generate_content.call_count == 2
 
 
 def test_finalize_prompt(client, mock_provider):
     """Test /api/pea/finalize endpoint with prompt generation"""
-    mock_provider.generate_response.side_effect = [
+    mock_provider.generate_content.side_effect = [
         "Initial response",
         "<optimized_prompt>Final XML</optimized_prompt>"
     ]
@@ -122,12 +135,12 @@ def test_finalize_prompt(client, mock_provider):
     session_id = start_response.json["session_id"]
 
     # Finalize prompt
-    response = client.post("/api/pea/finalize", json={"session_id": session_id})
+    response = client.post("/api/pea/finalize", json={"session_id": session_id, "provider": "google"})
     assert response.status_code == 200
     data = response.get_json()
     assert "final_prompt" in data
     assert session_id not in pea_conversations
-    mock_provider.generate_response.assert_called_with(ANY)  # Verify final call
+    mock_provider.generate_content.assert_called_with(ANY)  # Verify final call
 
 
 @patch("api.genai.GenerativeModel")
@@ -149,15 +162,6 @@ def test_timeout_error(mock_GenerativeModel, client):
     assert "Request timed out" in data["error"]
 
 
-@pytest.fixture
-def client():
-    app = Flask(__name__)
-    app.register_blueprint(api_bp, url_prefix="/api")
-    app.config["TESTING"] = True
-    with app.test_client() as client:
-        yield client
-
-
 @patch("api.genai.GenerativeModel")
 @patch("api.os.getenv")
 def test_optimize_prompt_success(mock_getenv, mock_GenerativeModel, client):
@@ -168,7 +172,7 @@ def test_optimize_prompt_success(mock_getenv, mock_GenerativeModel, client):
     mock_response.text = "<optimized_prompt>Test optimized prompt</optimized_prompt>"
     mock_model_instance.generate_content.return_value = mock_response
 
-    response = client.post("/api/optimize-prompt", json={"request": "test request"})
+    response = client.post("/api/optimize-prompt", json={"request": "test request", "provider": "google"})
 
     assert response.status_code == 200
     assert response.json == {
@@ -186,7 +190,7 @@ def test_optimize_prompt_success(mock_getenv, mock_GenerativeModel, client):
 def test_optimize_prompt_no_api_key(mock_getenv, client):
     mock_getenv.return_value = None
 
-    response = client.post("/api/optimize-prompt", json={"request": "test request"})
+    response = client.post("/api/optimize-prompt", json={"request": "test request", "provider": "google"})
 
     assert response.status_code == 500
     assert "API key not set" in response.json["error"]
@@ -207,7 +211,7 @@ def test_optimize_prompt_empty_request(client):
 
 def test_optimize_prompt_provider_error(client, mock_provider):
     """Test provider error handling"""
-    mock_provider.generate_response.side_effect = Exception("API Error")
+    mock_provider.generate_content.side_effect = Exception("API Error")
     
     response = client.post(
         "/api/optimize-prompt",
@@ -240,7 +244,7 @@ def test_start_pea_session_success(mock_getenv, mock_GenerativeModel, client):
 
     # Test request
     response = client.post(
-        "/api/pea/start", json={"initial_request": "Help me create a prompt"}
+        "/api/pea/start", json={"initial_request": "Help me create a prompt", "provider": "google"}
     )
 
     # Assertions
@@ -253,7 +257,7 @@ def test_start_pea_session_success(mock_getenv, mock_GenerativeModel, client):
     session_id = response.json["session_id"]
     assert session_id in pea_conversations
     # After the initial turn, history should contain 3 messages: system, user, model
-    assert len(pea_conversations[session_id]) == 3
+    assert len(pea_conversations[session_id]["history"]) == 3
 
 
 def test_start_pea_session_no_request(client):
@@ -273,20 +277,20 @@ def test_pea_chat_success(mock_getenv, mock_GenerativeModel, client):
     mock_response.text = "Initial response"
     mock_model_instance.generate_content.return_value = mock_response
 
-    start_response = client.post("/api/pea/start", json={"initial_request": "Help me"})
+    start_response = client.post("/api/pea/start", json={"initial_request": "Help me", "provider": "google"})
     session_id = start_response.json["session_id"]
 
     # Then test chat endpoint
     mock_response.text = "Follow-up response"
     chat_response = client.post(
         "/api/pea/chat",
-        json={"session_id": session_id, "message": "My follow-up question"},
+        json={"session_id": session_id, "message": "My follow-up question", "provider": "google"},
     )
 
     assert chat_response.status_code == 200
     assert chat_response.json == {"response": "Follow-up response"}
     # After the initial 3 messages, adding a user and model message makes it 5
-    assert len(pea_conversations[session_id]) == 5
+    assert len(pea_conversations[session_id]["history"]) == 5
 
 
 def test_pea_chat_invalid_session(client):
@@ -315,13 +319,13 @@ def test_finalize_prompt_success(mock_getenv, mock_GenerativeModel, client):
     mock_response.text = "Initial response"
     mock_model_instance.generate_content.return_value = mock_response
 
-    start_response = client.post("/api/pea/start", json={"initial_request": "Help me"})
+    start_response = client.post("/api/pea/start", json={"initial_request": "Help me", "provider": "google"})
     session_id = start_response.json["session_id"]
 
     # Then test finalize endpoint
     mock_response.text = "<optimized_prompt>Final XML prompt</optimized_prompt>"
     finalize_response = client.post(
-        "/api/pea/finalize", json={"session_id": session_id}
+        "/api/pea/finalize", json={"session_id": session_id, "provider": "google"}
     )
 
     assert finalize_response.status_code == 200
@@ -356,7 +360,7 @@ def test_pea_api_error(mock_getenv, mock_GenerativeModel, client):
     mock_model_instance.generate_content.side_effect = Exception("API Error")
 
     # Test API error during PEA start
-    response = client.post("/api/pea/start", json={"initial_request": "Help me"})
+    response = client.post("/api/pea/start", json={"initial_request": "Help me", "provider": "google"})
     assert response.status_code == 500
     assert "API Error" in response.json["error"]
 
@@ -369,13 +373,13 @@ def test_pea_api_error(mock_getenv, mock_GenerativeModel, client):
         Exception("API Error"),
     ]  # First call succeeds, second fails
 
-    start_response = client.post("/api/pea/start", json={"initial_request": "Help me"})
+    start_response = client.post("/api/pea/start", json={"initial_request": "Help me", "provider": "google"})
     session_id = start_response.json["session_id"]
 
     # Then test chat endpoint with API error
     chat_response = client.post(
         "/api/pea/chat",
-        json={"session_id": session_id, "message": "My follow-up question"},
+        json={"session_id": session_id, "message": "My follow-up question", "provider": "google"},
     )
 
     assert chat_response.status_code == 500
@@ -391,13 +395,13 @@ def test_pea_api_error(mock_getenv, mock_GenerativeModel, client):
         Exception("API Error"),
     ]  # First two succeed, third fails
 
-    start_response = client.post("/api/pea/start", json={"initial_request": "Help me"})
+    start_response = client.post("/api/pea/start", json={"initial_request": "Help me", "provider": "google"})
     session_id = start_response.json["session_id"]
-    client.post("/api/pea/chat", json={"session_id": session_id, "message": "Turn 1"})
+    client.post("/api/pea/chat", json={"session_id": session_id, "message": "Turn 1", "provider": "google"})
 
     # Then test finalize endpoint with API error
     finalize_response = client.post(
-        "/api/pea/finalize", json={"session_id": session_id}
+        "/api/pea/finalize", json={"session_id": session_id, "provider": "google"}
     )
 
     assert finalize_response.status_code == 500
