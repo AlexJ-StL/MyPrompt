@@ -27,7 +27,7 @@ class GoogleProvider(ProviderBase):
         # but is required by the abstract base class.
         pass
 
-    def generate_content(self, chat_history: List[Dict]) -> str:
+    async def generate_content(self, chat_history: List[Dict]) -> str:
         genai.configure(api_key=self.api_key)
         model_instance = genai.GenerativeModel(model_name=self.model_name or self._get_default_model())
         formatted_history = self.format_messages(chat_history)
@@ -39,7 +39,7 @@ class GoogleProvider(ProviderBase):
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
         }
 
-        response = model_instance.generate_content(
+        response = await model_instance.generate_content(
             formatted_history, safety_settings=safety_settings
         )
         return response.text.strip()

@@ -1,7 +1,7 @@
 import os
 import sys
 import pytest
-from unittest.mock import patch, MagicMock, ANY
+from unittest.mock import patch, MagicMock, AsyncMock, ANY
 from flask import Flask, g
 
 # Add parent directory to path
@@ -32,6 +32,7 @@ def client():
     app.register_blueprint(api_bp, url_prefix="/api")
     app.config["TESTING"] = True
     with app.app_context():
+        g.providers = AsyncMock() # Initialize g.providers here
         with app.test_client() as client:
             yield client
 
@@ -39,12 +40,12 @@ def client():
 @pytest.fixture
 def mock_provider(client):
     """Mock the ProviderBase class and its methods within an app context."""
-    with patch("flask.g") as mock_g:
-        mock_provider_instance = MagicMock(spec=ProviderBase)
-        mock_provider_instance.name = "google"
-        mock_provider_instance.generate_content.return_value = "<optimized_prompt>Test optimized prompt</optimized_prompt>"
-        mock_g.providers.get.return_value = mock_provider_instance
-        yield mock_provider_instance
+    mock_provider_instance = AsyncMock(spec=ProviderBase)
+    mock_provider_instance.name = "google"
+            mock_provider_instance.generate_content.return_value = AsyncMock(return_value="<optimized_prompt>Test optimized prompt</optimized_prompt>")
+    mock_provider_instance._get_default_model.return_value = "gemini-pro"
+    g.providers.get.return_value = mock_provider_instance
+    yield mock_provider_instance
 
 
 @pytest.fixture(autouse=True)

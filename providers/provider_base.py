@@ -88,7 +88,7 @@ class ProviderBase(abc.ABC):
         raise NotImplementedError("Concrete providers must implement request logic")
 
     @abc.abstractmethod
-    def generate_content(self, chat_history: List[Dict]) -> str:
+    async def generate_content(self, chat_history: List[Dict]) -> str:
         """
         Main interface for content generation, implementing standard error handling.
         Converts history, formats messages, makes request, parses response, and handles errors.

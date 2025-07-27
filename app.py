@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, g
+from flask import Flask, jsonify, g, request
 from api import api_bp
 from providers.provider_registry import ProviderRegistry
 from providers.provider_openai import OpenAiProvider  # Corrected capitalization
@@ -31,6 +31,17 @@ def load_providers():
     active_providers = provider_registry.get_active_providers()
     providers = provider_registry.available_providers()
     g.providers = providers
+
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = (
+        "Content-Type,Authorization,X-Requested-With"
+    )
+    response.headers["Access-Control-Allow-Methods"] = "GET,PUT,POST,DELETE,OPTIONS"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
 
 @app.route("/")

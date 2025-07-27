@@ -347,7 +347,7 @@ async def optimize_prompt():
             logging.error("optimize_prompt: Invalid provider specified")
             return jsonify({"error": "Invalid provider specified"}), 400
 
-        model_name = data.get("model") or selected_provider.get_default_model()
+        model_name = data.get("model") or selected_provider._get_default_model()
         if not model_name:
             logging.error("optimize_prompt: Model name not provided and no default")
             return jsonify({"error": "Model name not provided and no default"}), 400
