@@ -4,6 +4,7 @@ import requests
 
 class OpenRouterProvider(ProviderBase):
     key_env_var = "OPENROUTER_API_KEY"
+    fallback_env_var = "OPENAI_API_KEY"  # Fallback to OPENAI_API_KEY if OPENROUTER_API_KEY is not set
 
     def _get_default_model(self) -> str:
         return "google/gemini-pro"

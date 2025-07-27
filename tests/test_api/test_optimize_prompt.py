@@ -4,7 +4,7 @@ import requests
 import json
 import pytest
 from unittest.mock import patch, MagicMock
-from flask import Flask
+from app_factory import create_app
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
@@ -15,10 +15,9 @@ from api import api_bp
 @pytest.fixture
 def client():
     """
-    Fixture to create a Flask test client with the api blueprint registered.
+    Fixture to create a Flask test client using the app factory.
     """
-    app = Flask(__name__)
-    app.register_blueprint(api_bp, url_prefix="/api")
+    app = create_app()
     app.config["TESTING"] = True
     with app.test_client() as client:
         yield client

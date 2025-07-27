@@ -1,29 +1,33 @@
 from providers.provider_base import ProviderBase
-
+import requests
+import logging
 
 class MistralProvider(ProviderBase):
-    API_KEY_ENV = "MISTRAL_API_KEY"
+    key_env_var = "MISTRAL_API_KEY"
 
-    def __init__(self, api_key) -> None:
-        if not api_key:
-            raise ValueError("The API key is required to create a Mistral provider.")
-        self.api_key = api_key
+    def _get_default_model(self) -> str:
+        return "mistral-large-latest"
 
-    def call(self, message):
+    def format_messages(self, chat_history: list) -> list:
+        # Mistral API uses the same format as OpenAI
+        return chat_history
+
+    def _make_request(self, url: str, data: dict) -> requests.Response:
         headers = {
-            "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
         }
-        url = f"{self.base_url}/chat/completions"
+        response = requests.post(url, headers=headers, json=data, timeout=30)
+        response.raise_for_status()
+        return response
 
-        data = {
-            "model": "some-model",
-            "messages": [{"role": "user", "content": message.content}],
+    def generate_content(self, chat_history: list) -> str:
+        url = "https://api.mistral.ai/v1/chat/completions"
+        messages = self.format_messages(chat_history)
+        payload = {
+            "model": self.model_name,
+            "messages": messages,
+            "max_tokens": 4000,
         }
-
-        try:
-            response = requests.post(url, headers=headers, json=data)
-            return response.json()
-        except Exception as e:
-            logging.error(f"Mistral provider call failed: {e}")
-            return {"Error": str(e)}
+        response = self._make_request(url, payload)
+        return response.json()["choices"][0]["message"]["content"].strip()

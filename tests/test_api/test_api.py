@@ -40,12 +40,21 @@ def client():
 @pytest.fixture
 def mock_provider(client):
     """Mock the ProviderBase class and its methods within an app context."""
-    mock_provider_instance = AsyncMock(spec=ProviderBase)
-    mock_provider_instance.name = "google"
-            mock_provider_instance.generate_content.return_value = AsyncMock(return_value="<optimized_prompt>Test optimized prompt</optimized_prompt>")
-    mock_provider_instance._get_default_model.return_value = "gemini-pro"
-    g.providers.get.return_value = mock_provider_instance
-    yield mock_provider_instance
+    with client.application.app_context():
+        # Create mock provider instance
+        mock_provider_instance = AsyncMock(spec=ProviderBase)
+        mock_provider_instance.name = "google"
+        mock_provider_instance.generate_content.return_value = AsyncMock(return_value="<optimized_prompt>Test optimized prompt</optimized_prompt>")
+        mock_provider_instance._get_default_model.return_value = "gemini-pro"
+        
+        # Mock g.providers to be a ProviderRegistry-like object with a get_provider method
+        if not hasattr(g, 'providers'):
+            # Create a mock that has the same interface as ProviderRegistry
+            mock_registry = MagicMock()
+            mock_registry.get_provider.return_value = mock_provider_instance
+            g.providers = mock_registry
+        
+        yield mock_provider_instance
 
 
 @pytest.fixture(autouse=True)

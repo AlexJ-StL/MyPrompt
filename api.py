@@ -11,8 +11,6 @@ import logging
 import requests
 import flask
 from flask import Blueprint, request, jsonify
-from providers.provider_base import ProviderBase
-from providers.provider_base import ProviderBase
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 import google.generativeai as genai
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
@@ -22,7 +20,13 @@ logging.basicConfig(level=logging.DEBUG)
 
 api_bp = Blueprint("api", __name__)
 
-# Define a mapping of supported providers to their API endpoints
+# Import provider-related modules after the blueprint is defined to avoid circular imports
+from providers.provider_base import ProviderBase
+from providers.provider_registry import ProviderRegistry
+
+
+
+# Define provider URLs and keys
 PROVIDER_URLS = {
     "openai": "https://api.openai.com/v1/chat/completions",
     "anthropic": "https://api.anthropic.com/v1/messages",
@@ -142,7 +146,7 @@ def _get_provider_api_key(provider_name: str) -> Optional[str]:
 
 
 def _generate_optimized_prompt_xml(
-    provider: str, model_name: Optional[str], api_key: Optional[str], user_request: str
+    provider_name: str, model_name: Optional[str], user_request: str
 ) -> str:
     """
     Generates an optimized XML prompt using the specified LLM provider.
@@ -163,141 +167,50 @@ def _generate_optimized_prompt_xml(
     ).strip()
 
     messages = [{"role": "user", "content": formatted_user_request}]
-    return _generate_chat_response(provider, model_name, api_key, messages)
-
+    return _generate_chat_response(provider_name, model_name, messages)
 
 def _generate_chat_response(
-    provider: str,
+    provider_name: str,
     model_name: Optional[str],
-    api_key: Optional[str],
     chat_history: List[Dict],
 ) -> str:
     """
     Handles generating content through the appropriate API based on the provider,
     for ongoing chat conversations.
     """
-    if provider == "google":
-        genai.configure(api_key=api_key)
-        # Use default model if none provided, or infer from context
-        # (e.g., if a specific model was used to start the session)
-        model_instance = genai.GenerativeModel(model_name=model_name or "gemini-pro")
-        # Convert messages to Google's expected format: [{"role": ..., "parts": [{"text": ...}]}]
-        formatted_history = []
-        for msg in chat_history:
-            if "content" in msg:
-                # Convert OpenAI-style message to Google-style
-                formatted_history.append(
-                    {"role": msg["role"], "parts": [{"text": msg["content"]}]}
-                )
-            else:
-                # Already in Google format
-                formatted_history.append(msg)
-
-        # Use enum objects directly with type ignore to bypass strict type checking
-        safety_settings = {
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-        }
-
-        # The type ignore comment will suppress the type checking error
-        response = model_instance.generate_content(
-            formatted_history, safety_settings=safety_settings  # type: ignore
-        )
-        return response.text.strip()
-
-    elif provider in [
-        "openai",
-        "openrouter",
-        "groq",
-        "mistral",
-        "ollama",
-        "lmstudio",
-        "anthropic",
-    ]:
-        headers = {"Content-Type": "application/json"}
-
-        # Determine model name based on provider default if not specified
-        if not model_name:
-            default_models = {
-                "openai": "gpt-4",
-                "anthropic": "claude-3-opus-20240229",
-                "groq": "llama3-8b-8192",
-                "mistral": "mistral-large-latest",
-                "openrouter": "google/gemini-pro",
-                "ollama": "llama2",
-                "lmstudio": "llama2",
-            }
-            model_name = default_models.get(provider, "default-model")
-            logging.debug(
-                f"Using default model '{model_name}' for provider '{provider}'"
-            )
-
-        # Add API key header based on provider
-        if provider == "anthropic":
-            if api_key:
-                headers["x-api-key"] = api_key
-            headers["anthropic-version"] = "2023-06-01"
-        else:  # OpenAI-compatible
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
-
-        # Special headers for OpenRouter
-        if provider == "openrouter":
-            headers["HTTP-Referer"] = "https://myprompt.alexjekop.com"
-            headers["X-Title"] = "MyPrompt Assistant"
-
-        url = PROVIDER_URLS.get(provider)
-        if not url:
-            raise ValueError(f"Unknown or unsupported provider URL for {provider}.")
-
-        # Convert chat_history to the format expected by OpenAI-compatible APIs
-        # which is [{'role': 'role_name', 'content': 'text_content'}]
-        # The history passed by the PEA might have 'parts'
-        formatted_messages = []
-        for msg in chat_history:
-            if "parts" in msg and isinstance(msg["parts"], list) and msg["parts"]:
-                formatted_messages.append(
-                    {
-                        "role": msg["role"],
-                        "content": msg["parts"][0][
-                            "text"
-                        ],  # Assuming only one text part
-                    }
-                )
-            else:
-                # Fallback for messages not in 'parts' format (e.g., initial user prompt)
-                formatted_messages.append(
-                    {"role": msg["role"], "content": msg["content"]}
-                )
-
-        payload = {
-            "model": model_name,
-            "messages": formatted_messages,
-            "max_tokens": 4000,
-        }
-        # Ollama and LM Studio typically don't use 'temperature'
-        # in /v1/chat/completions
-        if provider not in ["ollama", "lmstudio"]:
-            payload["temperature"] = (
-                1  # Changed from 0.7 to 1 to satisfy type hint for 'int'
-            )
-
-        # Use a general timeout for requests, can be adjusted per provider
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
-
-        if provider == "anthropic":
-            return response.json()["content"][0]["text"].strip()
-        else:  # OpenAI-compatible structure
-            return response.json()["choices"][0]["message"]["content"].strip()
-    else:
-        raise ValueError(f"Unsupported provider: {provider}")
+    try:
+        # Get the provider instance from the registry
+        registry = _get_provider_registry()
+        provider = registry.get_provider(provider_name)
+        
+        # Update model name if specified
+        if model_name:
+            provider.model_name = model_name
+            
+        # Generate content using the provider
+        return provider.generate_content(chat_history)
+        
+    except KeyError as e:
+        logging.error(f"Key error in response parsing: {str(e)}")
+        raise e
+    except requests.ConnectionError as e:
+        logging.error(f"Network error: {str(e)}")
+        raise e
+    except requests.Timeout as e:
+        logging.error(f"Request timeout: {str(e)}")
+        raise e
+    except requests.HTTPError as e:
+        logging.error(f"HTTP error: {str(e)}")
+        raise e
+    except Exception as e:
+        logging.error(f"Unexpected error in _generate_chat_response: {str(e)}")
+        raise e
 
 
 @api_bp.route("/optimize-prompt", methods=["POST"])
-async def optimize_prompt():
+# Remove 'async' from the function signature since we're not awaiting anything
+# and the route decorator doesn't support async functions in this Flask version
+def optimize_prompt():
     """
     Optimizes a user's prompt by sending it to a selected language model provider.
 
@@ -340,11 +253,15 @@ async def optimize_prompt():
         user_request = data["request"]
 
         # Retrieve provider from Flask context (assuming it's set in before_request)
-        selected_provider = await flask.g.providers.get(
-            data.get("provider", "google").lower()
-        )
-        if not selected_provider:
-            logging.error("optimize_prompt: Invalid provider specified")
+        try:
+            selected_provider = flask.g.providers.get_provider(
+                data.get("provider", "google").lower()
+            )
+            if not selected_provider.is_api_key_valid():
+                logging.error("optimize_prompt: Provider API key not valid")
+                return jsonify({"error": "Provider API key not valid"}), 400
+        except ValueError as e:
+            logging.error(f"optimize_prompt: Invalid provider specified: {str(e)}")
             return jsonify({"error": "Invalid provider specified"}), 400
 
         model_name = data.get("model") or selected_provider._get_default_model()
@@ -360,13 +277,31 @@ async def optimize_prompt():
 
         # Call the provider's generate_response with history
         messages = [{"role": "user", "content": user_request}]
+        
+        # Handle both sync and async generate_content methods
         response_content = selected_provider.generate_content(messages)
+        
+        # If the response is a coroutine, await it
+        if hasattr(response_content, '__await__'):
+            # We're in a non-async function, so we need to run the coroutine
+            # This is not ideal, but necessary for compatibility
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            response_content = loop.run_until_complete(response_content)
 
         # Clean response and return
-        optimized_prompt_xml = (
-            response_content.replace("```xml", "").replace("```", "").strip()
-        )
-        return jsonify({"optimized_prompt": optimized_prompt_xml})
+        if isinstance(response_content, str):
+            optimized_prompt_xml = (
+                response_content.replace("```xml", "").replace("```", "").strip()
+            )
+            return jsonify({"optimized_prompt": optimized_prompt_xml})
+        else:
+            logging.error(f"optimize_prompt: Unexpected response type: {type(response_content)}")
+            return jsonify({"error": "Provider returned invalid response type"}), 500
 
     except ValueError as e:
         logging.exception("optimize_prompt: ValueError caught.")
