@@ -67,9 +67,6 @@ def client(app):
         yield client
 
 
-
-
-
 def test_optimize_prompt(client, mock_providers):
     """Test /api/optimize-prompt endpoint with provider integration"""
     test_request = "Test request"
