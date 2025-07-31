@@ -24,6 +24,30 @@ api_bp = Blueprint("api", __name__)
 from providers.provider_base import ProviderBase
 from providers.provider_registry import ProviderRegistry
 
+# Global provider registry instance - will be set by app_factory
+_provider_registry = None
+
+def _get_provider_registry():
+    """Get the provider registry instance."""
+    if _provider_registry is None:
+        raise RuntimeError("Provider registry not initialized. Call set_provider_registry first.")
+    return _provider_registry
+
+def set_provider_registry(registry):
+    """Set the provider registry instance."""
+    global _provider_registry
+    _provider_registry = registry
+
+def get_providers_registry():
+    """Get the provider registry instance."""
+    # Import flask here to avoid circular imports
+    from flask import g
+    # Try to get from g first (request context)
+    if hasattr(g, 'providers'):
+        return g.providers
+    # Fall back to global registry
+    return _get_provider_registry()
+
 
 
 # Define provider URLs and keys
@@ -119,10 +143,11 @@ def initialize_pea_session(provider: str, model_name: Optional[str]) -> str:
 def add_message_to_session(
     session_id: str, role: str, content: str, provider: ProviderBase
 ) -> None:
-    """Add a message to the conversation history in the provider's expected format."""
+    """Add a message to the conversation history."""
     if session_id in pea_conversations:
-        # Use provider's message format method
-        message = provider.format_message(role, content)
+        # Standard message format - providers that need special formatting
+        # will handle it in their format_messages method when generating content
+        message = {"role": role, "content": content}
         pea_conversations[session_id]["history"].append(message)
 
 
@@ -188,7 +213,20 @@ def _generate_chat_response(
             provider.model_name = model_name
             
         # Generate content using the provider
-        return provider.generate_content(chat_history)
+        result = provider.generate_content(chat_history)
+        
+        # Handle different types of results
+        if isinstance(result, str):
+            return result
+        else:
+            # For any other type, convert to string
+            return str(result)
+            
+    except KeyError as e:
+        logging.error(f"Key error in response parsing: {str(e)}")
+        raise e
+            
+        return result
         
     except KeyError as e:
         logging.error(f"Key error in response parsing: {str(e)}")
@@ -337,26 +375,45 @@ async def start_pea_session():
             "start_pea_session: Provider: %s, Model: %s", provider, model_name
         )
 
-        api_key = _get_provider_api_key(provider)
-        if not api_key:
+        # Get the provider from the registry
+        registry = _get_provider_registry()
+        provider_instance = registry.get_provider(provider)
+        if not provider_instance:
             return (
                 jsonify(
                     {
-                        "error": (
-                            f"{PROVIDER_KEYS[provider]} or OPENAI_API_KEY not set "
-                            "in environment for PEA mode."
-                        )
+                        "error": f"Provider '{provider}' not available"
                     }
                 ),
                 500,
+            )
+            
+        # Check if provider has valid API key
+        if not provider_instance.is_api_key_valid():
+            return (
+                jsonify(
+                    {
+                        "error": f"Provider API key not valid for {provider}"
+                    }
+                ),
+                400,
             )
 
         # Create new session, storing provider and model
         session_id = initialize_pea_session(provider, model_name)
 
+        # Get the provider instance from the registry for formatting messages
+        registry = _get_provider_registry()
+        provider_instance = registry.get_provider(provider)
+        if not provider_instance:
+            return (
+                jsonify({"error": f"Provider '{provider}' not available"}),
+                500,
+            )
+
         # Add the system prompt and then the initial user request
-        add_message_to_session(session_id, "system", PEA_SYSTEM_PROMPT)
-        add_message_to_session(session_id, "user", initial_request)
+        add_message_to_session(session_id, "system", PEA_SYSTEM_PROMPT, provider_instance)
+        add_message_to_session(session_id, "user", initial_request, provider_instance)
 
         # Get PEA's first response (the model's turn)
         session_data = get_session_data(session_id)
@@ -364,11 +421,11 @@ async def start_pea_session():
 
         # Pass the history to the generic chat response function
         pea_response_content = _generate_chat_response(
-            provider, model_name, api_key, history
+            provider, model_name, history
         )
 
         # Add PEA's response to history with role 'model'
-        add_message_to_session(session_id, "model", pea_response_content)
+        add_message_to_session(session_id, "model", pea_response_content, provider_instance)
 
         return jsonify({"session_id": session_id, "response": pea_response_content})
 
@@ -414,21 +471,51 @@ async def pea_chat():
             "pea_chat: Provider: %s, Model: %s", current_provider, current_model_name
         )
 
-        # Add user message to history
-        add_message_to_session(session_id, "user", user_message)
-
-        api_key = _get_provider_api_key(current_provider)
-        if not api_key:
+        # Get the provider from the registry
+        registry = _get_provider_registry()
+        provider_instance = registry.get_provider(current_provider)
+        if not provider_instance:
             return (
                 jsonify(
                     {
-                        "error": (
-                            f"{provider.upper()}_API_KEY or OPENAI_API_KEY not set "
-                            "in environment for PEA mode."
-                        )
+                        "error": f"Provider '{current_provider}' not available"
                     }
                 ),
                 500,
+            )
+            
+        # Check if provider has valid API key
+        if not provider_instance.is_api_key_valid():
+            return (
+                jsonify(
+                    {
+                        "error": f"Provider API key not valid for {current_provider}"
+                    }
+                ),
+                400,
+            )
+
+        # Add user message to history with provider for formatting
+        add_message_to_session(session_id, "user", user_message, provider_instance)
+        if not provider_instance:
+            return (
+                jsonify(
+                    {
+                        "error": f"Provider '{current_provider}' not available"
+                    }
+                ),
+                500,
+            )
+            
+        # Check if provider has valid API key
+        if not provider_instance.is_api_key_valid():
+            return (
+                jsonify(
+                    {
+                        "error": f"Provider API key not valid for {current_provider}"
+                    }
+                ),
+                400,
             )
 
         # Get PEA's response using the new helper
@@ -495,25 +582,35 @@ async def finalize_prompt():
             current_model_name,
         )
 
-        api_key = _get_provider_api_key(current_provider)
-        if not api_key:
+        # Get the provider from the registry
+        registry = _get_provider_registry()
+        provider_instance = registry.get_provider(current_provider)
+        if not provider_instance:
             return (
                 jsonify(
                     {
-                        "error": (
-                            f"{provider.upper()}_API_KEY or OPENAI_API_KEY not set "
-                            "in environment for PEA mode."
-                        )
+                        "error": f"Provider '{current_provider}' not available"
                     }
                 ),
                 500,
+            )
+            
+        # Check if provider has valid API key
+        if not provider_instance.is_api_key_valid():
+            return (
+                jsonify(
+                    {
+                        "error": f"Provider API key not valid for {current_provider}"
+                    }
+                ),
+                400,
             )
 
         # Add finalization request/instruction to history (user role)
         finalize_instruction = """Based on our conversation, please generate the final optimized prompt in XML format.
             The XML should capture all the key information we've discussed and be structured to
             effectively achieve the user's goal."""
-        add_message_to_session(session_id, "user", finalize_instruction)
+        add_message_to_session(session_id, "user", finalize_instruction, provider_instance)
 
         # Get final XML prompt using the new helper
         history = session_data["history"]  # Re-fetch history after adding instruction
@@ -525,6 +622,9 @@ async def finalize_prompt():
         final_prompt_content = (
             final_prompt_content.replace("```xml", "").replace("```", "").strip()
         )
+        
+        # Add PEA's response to history with role 'model' and provider for formatting
+        add_message_to_session(session_id, "model", final_prompt_content, provider_instance)
 
         # Clean up the session
         clear_session(session_id)

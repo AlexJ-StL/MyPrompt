@@ -9,7 +9,7 @@ class GoogleProvider(ProviderBase):
     key_env_var = "GOOGLE_API_KEY"
 
     def _get_default_model(self) -> str:
-        return "gemini-pro"
+        return "gemini-1.5-flash"
 
     def format_messages(self, chat_history: List[Dict]) -> List[Dict]:
         # Google's API uses a different format for messages

@@ -1,20 +1,27 @@
 import os
 import sys
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock, ANY
+import asyncio
+from unittest.mock import patch, MagicMock
 from flask import Flask, g
+
+# Add the project root to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+# Now import from the project
+from providers.provider_base import ProviderBase
+
+# Set test environment variables BEFORE any imports that might check them
+os.environ["GOOGLE_API_KEY"] = "test_key"
+os.environ["OPENAI_API_KEY"] = "test_key"
+os.environ["ENV_FILE"] = ".env.test"
 
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from app import app
-from api import api_bp, pea_conversations, initialize_pea_session, add_message_to_session
+from app_factory import create_app
+from api import api_bp, pea_conversations, get_providers_registry
 from providers.provider_base import ProviderBase
-from unittest.mock import ANY  # Add this import
-
-# Set test environment variables
-os.environ["GOOGLE_API_KEY"] = "test_api_key"
-os.environ["ENV_FILE"] = ".env.test"
 
 
 @pytest.fixture(autouse=True)
@@ -26,131 +33,202 @@ def clear_conversations():
 
 
 @pytest.fixture
-def client():
-    """Create test client with API blueprint and application context."""
-    app = Flask(__name__)
-    app.register_blueprint(api_bp, url_prefix="/api")
+def app():
+    """Create test app."""
+    # Create mock providers for testing
+    mock_provider = MagicMock(spec=ProviderBase)
+    mock_provider.name = "google"
+    mock_provider.key_env_var = "GOOGLE_API_KEY"
+    mock_provider.is_api_key_valid.return_value = True
+    mock_provider.api_key = "test_key"
+    
+    # Create a MagicMock for generate_content that returns a string
+    mock_generate_content = MagicMock()
+    mock_generate_content.return_value = "Test PEA response"
+    mock_provider.generate_content = mock_generate_content
+    
+    # Create mock registry with mock provider
+    mock_registry = MagicMock()
+    mock_registry.get_provider.return_value = mock_provider
+    mock_registry.available_providers.return_value = [mock_provider]
+    
+    # Store references for test access
+    app = create_app(provider_registry_instance=mock_registry)
     app.config["TESTING"] = True
-    with app.app_context():
-        g.providers = AsyncMock() # Initialize g.providers here
-        with app.test_client() as client:
-            yield client
+    app.config["MOCK_PROVIDER"] = mock_provider
+    app.config["MOCK_REGISTRY"] = mock_registry
+    return app
 
 
 @pytest.fixture
-def mock_provider(client):
-    """Mock the ProviderBase class and its methods within an app context."""
-    with client.application.app_context():
-        # Create mock provider instance
-        mock_provider_instance = AsyncMock(spec=ProviderBase)
-        mock_provider_instance.name = "google"
-        mock_provider_instance.generate_content.return_value = AsyncMock(return_value="<optimized_prompt>Test optimized prompt</optimized_prompt>")
-        mock_provider_instance._get_default_model.return_value = "gemini-pro"
-        
-        # Mock g.providers to be a ProviderRegistry-like object with a get_provider method
-        if not hasattr(g, 'providers'):
-            # Create a mock that has the same interface as ProviderRegistry
-            mock_registry = MagicMock()
-            mock_registry.get_provider.return_value = mock_provider_instance
-            g.providers = mock_registry
-        
-        yield mock_provider_instance
+def client(app):
+    """Create test client."""
+    with app.test_client() as client:
+        yield client
 
 
-@pytest.fixture(autouse=True)
-def mock_genai():
-    """Mock Google GenerativeModel for all tests."""
-    with patch("api.genai.GenerativeModel") as mock_generative_model:
-        mock_model_instance = MagicMock()
-        mock_generative_model.return_value = mock_model_instance
-        mock_response = MagicMock()
-        mock_response.text = (
-            "<optimized_prompt>Test optimized prompt</optimized_prompt>"
-        )
-        mock_model_instance.generate_content.return_value = mock_response
-        yield mock_model_instance
 
 
-def test_optimize_prompt(client, mock_provider):
+
+def test_optimize_prompt(client, mock_providers):
     """Test /api/optimize-prompt endpoint with provider integration"""
-    response = client.post(
-        "/api/optimize-prompt",
-        json={"request": "Test request", "provider": "google"}
-    )
+    test_request = "Test request"
+    test_response = "<optimized_prompt>Test optimized prompt</optimized_prompt>"
     
-    assert response.status_code == 200
-    data = response.get_json()
-    assert "optimized_prompt" in data
-    mock_provider.generate_content.assert_called_once_with(
-        [{"role": "user", "content": "Test request"}]
-    )
-
-
-def test_start_pea_session(client, mock_provider):
-    """Test /api/pea/start endpoint with session initialization"""
-    mock_provider.generate_content.return_value = "Test PEA response"
+    # Unpack the mock provider and registry
+    mock_provider, mock_registry = mock_providers
+    mock_provider.generate_content.return_value = test_response
     
-    response = client.post(
-        "/api/pea/start",
-        json={"initial_request": "Test initial request", "provider": "google"}
-    )
+    with patch.dict(os.environ, {"GOOGLE_API_KEY": "test_api_key"}):
+        response = client.post(
+            "/api/optimize-prompt",
+            json={"request": test_request, "provider": "google"}
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "optimized_prompt" in data
+        assert data["optimized_prompt"] == test_response
+        # Updated to match the actual call in the code
+        expected_messages = [{"role": "user", "content": test_request}]
+        mock_provider.generate_content.assert_called_once_with(expected_messages)
+
+
+def test_start_pea_session(client):
+    """
+    Test /api/pea/start endpoint with session initialization.
     
-    assert response.status_code == 200
-    data = response.get_json()
-    assert "session_id" in data
-    assert "response" in data
-    session_id = data["session_id"]
-    assert session_id in pea_conversations
-    mock_provider.generate_content.assert_called_once()
+    This test simulates the entire workflow of starting a PEA session,
+    from the initial API call through conversation storage.
+    """
+    test_request = "Test initial request"
+    test_response = "Test PEA response"
+    
+    # Get access to the mock provider and registry from the app config
+    mock_provider = client.application.config["MOCK_PROVIDER"]
+    mock_registry = client.application.config["MOCK_REGISTRY"]
+    
+    # Ensure the provider knows it has a valid API key
+    mock_provider.is_api_key_valid.return_value = True
+    # Set the api_key attribute directly
+    mock_provider.api_key = "test_key"
+    
+    # Configure the mock provider to return a string (not a coroutine)
+    mock_provider.generate_content.return_value = test_response
+    # Ensure the provider knows it has a valid API key
+    mock_provider.is_api_key_valid.return_value = True
+    # Set the api_key attribute directly to bypass environment lookup
+    mock_provider.api_key = "test_key"
+    # Mock the generate_content method to return our test response
+    mock_provider.generate_content.return_value = test_response
+    
+    # Set a valid API key in the environment
+    with patch.dict(os.environ, {"GOOGLE_API_KEY": "test_key", "OPENAI_API_KEY": "test_key"}):
+        response = client.post(
+            "/api/pea/start",
+            json={"initial_request": test_request, "provider": "google"}
+        )
+        
+        # Print response if there's an error
+        if response.status_code != 200:
+            print(f"Error status: {response.status_code}")
+            error_data = response.get_json()
+            if error_data:
+                print(f"Error response: {error_data}")
+        
+        # Assertions
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+        data = response.get_json()
+        assert "session_id" in data, "session_id not in response"
+        assert "response" in data, "response not in response"
+        assert data["response"] == test_response, f"Expected '{test_response}', got '{data['response']}'"
+        
+        # Verify session was stored correctly
+        session_id = data["session_id"]
+        assert session_id in pea_conversations, f"Session {session_id} not stored in pea_conversations"
+        
+        # Check that the conversation history has the expected messages
+        history = pea_conversations[session_id]["history"]
+        assert len(history) == 3, f"Expected 3 messages, got {len(history)}"
+        assert history[0]["role"] == "system", f"First message role should be 'system', got {history[0]['role']}"
+        assert history[1]["role"] == "user", f"Second message role should be 'user', got {history[1]['role']}"
+        assert history[2]["role"] == "model", f"Third message role should be 'model', got {history[2]['role']}"
+        
+            # Verify the provider was called correctly
+            # The generate_content should be called with the full conversation history
+            # First with system and user messages to get the initial response
+            first_call_args = mock_provider.generate_content.call_args_list[0][0][0]
+            assert len(first_call_args) == 2, f"Expected 2 messages, got {len(first_call_args)}"
+            assert first_call_args[0]["role"] == "system"
+            assert first_call_args[1]["role"] == "user"
+            assert first_call_args[1]["content"] == test_request
+            
+            # The response should be added to the conversation history
+            assert len(history) == 3
+            assert history[2]["role"] == "model"
+            assert history[2]["content"] == test_response
 
 
-def test_pea_chat(client, mock_provider):
+def test_pea_chat(client, mock_providers):
     """Test /api/pea/chat endpoint with session continuation"""
-    mock_provider.generate_content.side_effect = [
-        "First response",
-        "Second response"
-    ]
+    test_request = "Test initial request"
+    test_message = "Test message"
+    test_response = "Test PEA response"
     
-    # Start a session
-    start_response = client.post(
-        "/api/pea/start",
-        json={"initial_request": "Test initial request", "provider": "google"}
-    )
-    session_id = start_response.json["session_id"]
-
-    # Send chat message
-    response = client.post(
-        "/api/pea/chat",
-        json={"session_id": session_id, "message": "Test message", "provider": "google"}
-    )
+    # Unpack the mock provider and registry
+    mock_provider, mock_registry = mock_providers
+    # First call is for starting the session, second for the chat
+    mock_provider.generate_content.side_effect = [test_response, test_response]
     
-    assert response.status_code == 200
-    data = response.get_json()
-    assert "response" in data
-    assert mock_provider.generate_content.call_count == 2
+    with patch.dict(os.environ, {"GOOGLE_API_KEY": "test_api_key"}):
+        # Start a session
+        start_response = client.post(
+            "/api/pea/start",
+            json={"initial_request": test_request, "provider": "google"}
+        )
+        session_id = start_response.json["session_id"]
+
+        # Send chat message
+        response = client.post(
+            "/api/pea/chat",
+            json={"session_id": session_id, "message": test_message, "provider": "google"}
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "response" in data
+        assert data["response"] == test_response
+        assert mock_provider.generate_content.call_count == 2
 
 
-def test_finalize_prompt(client, mock_provider):
+def test_finalize_prompt(client, mock_providers):
     """Test /api/pea/finalize endpoint with prompt generation"""
-    mock_provider.generate_content.side_effect = [
-        "Initial response",
-        "<optimized_prompt>Final XML</optimized_prompt>"
-    ]
+    test_request = "Test initial request"
+    start_response = "Initial response"
+    finalize_response = "<optimized_prompt>Final XML</optimized_prompt>"
     
-    # Start a session
-    start_response = client.post(
-        "/api/pea/start",
-        json={"initial_request": "Test initial request", "provider": "google"}
-    )
-    session_id = start_response.json["session_id"]
+    # Unpack the mock provider and registry
+    mock_provider, mock_registry = mock_providers
+    # First call for start, second for finalize
+    mock_provider.generate_content.side_effect = [start_response, finalize_response]
+    
+    with patch.dict(os.environ, {"GOOGLE_API_KEY": "test_api_key"}):
+        # Start a session
+        start_response = client.post(
+            "/api/pea/start",
+            json={"initial_request": test_request, "provider": "google"}
+        )
+        session_id = start_response.json["session_id"]
 
-    # Finalize prompt
-    response = client.post("/api/pea/finalize", json={"session_id": session_id, "provider": "google"})
-    assert response.status_code == 200
-    data = response.get_json()
-    assert "final_prompt" in data
-    assert session_id not in pea_conversations
-    mock_provider.generate_content.assert_called_with(ANY)  # Verify final call
+        # Finalize prompt
+        response = client.post("/api/pea/finalize", json={"session_id": session_id, "provider": "google"})
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "final_prompt" in data
+        assert data["final_prompt"] == finalize_response
+        assert session_id not in pea_conversations
+        assert mock_provider.generate_content.call_count == 2
 
 
 @patch("api.genai.GenerativeModel")
@@ -172,64 +250,82 @@ def test_timeout_error(mock_GenerativeModel, client):
     assert "Request timed out" in data["error"]
 
 
-@patch("api.genai.GenerativeModel")
-@patch("api.os.getenv")
-def test_optimize_prompt_success(mock_getenv, mock_GenerativeModel, client):
-    mock_getenv.return_value = "fake_api_key"
-    mock_model_instance = MagicMock()
-    mock_GenerativeModel.return_value = mock_model_instance
-    mock_response = MagicMock()
-    mock_response.text = "<optimized_prompt>Test optimized prompt</optimized_prompt>"
-    mock_model_instance.generate_content.return_value = mock_response
-
-    response = client.post("/api/optimize-prompt", json={"request": "test request", "provider": "google"})
-
-    assert response.status_code == 200
-    assert response.json == {
-        "optimized_prompt": "<optimized_prompt>Test optimized prompt</optimized_prompt>"
-    }
-    mock_getenv.assert_called_once_with("GOOGLE_API_KEY")
-    mock_GenerativeModel.assert_called_once()
-    call_args = mock_GenerativeModel.call_args
-    assert call_args.kwargs["model_name"] == "gemini-pro"
-    # Safety settings are now handled differently in our code
-    mock_model_instance.generate_content.assert_called_once()
-
-
-@patch("api.os.getenv")
-def test_optimize_prompt_no_api_key(mock_getenv, client):
-    mock_getenv.return_value = None
-
-    response = client.post("/api/optimize-prompt", json={"request": "test request", "provider": "google"})
-
-    assert response.status_code == 500
-    assert "API key not set" in response.json["error"]
-    mock_getenv.assert_called_once_with("GOOGLE_API_KEY")
+@patch("api.get_providers_registry")
+def test_optimize_prompt_success(mock_get_registry, client):
+    """Test /optimize-prompt endpoint success"""
+    # Create a mock provider
+    mock_provider = MagicMock(spec=ProviderBase)
+    mock_provider.is_api_key_valid.return_value = True
+    mock_provider.name = "google"
+    mock_provider.key_env_var = "GOOGLE_API_KEY"
+    mock_provider.generate_content.return_value = "<optimized_prompt>Test optimized prompt</optimized_prompt>"
+    
+    # Create a mock registry
+    mock_registry = MagicMock()
+    mock_registry.get_provider.return_value = mock_provider
+    mock_registry.available_providers.return_value = [mock_provider]
+    mock_get_registry.return_value = mock_registry
+    
+    with patch.dict(os.environ, {"GOOGLE_API_KEY": "fake_api_key"}):
+        response = client.post("/api/optimize-prompt", json={"request": "test request", "provider": "google"})
+        
+        assert response.status_code == 200
+        assert response.json == {
+            "optimized_prompt": "<optimized_prompt>Test optimized prompt</optimized_prompt>"
+        }
+        mock_provider.generate_content.assert_called_once()
 
 
+@patch("api.get_providers_registry")
+def test_optimize_prompt_no_api_key(mock_get_registry, client):
+    """Test /optimize-prompt endpoint when no API key is set"""
+    # Create a mock provider
+    mock_provider = MagicMock(spec=ProviderBase)
+    mock_provider.is_api_key_valid.return_value = False
+    mock_provider.name = "google"
+    mock_provider.key_env_var = "GOOGLE_API_KEY"
+    
+    # Create a mock registry
+    mock_registry = MagicMock()
+    mock_registry.get_provider.return_value = mock_provider
+    mock_registry.available_providers.return_value = [mock_provider]
+    mock_get_registry.return_value = mock_registry
+    
+    with patch.dict(os.environ, {"GOOGLE_API_KEY": ""}):
+        response = client.post("/api/optimize-prompt", json={"request": "test request", "provider": "google"})
+        
+        assert response.status_code == 400
+        assert "Provider API key not valid" in response.json["error"]
+
+
+# Keep the existing test as it's already correct
 def test_optimize_prompt_no_request(client):
     response = client.post("/api/optimize-prompt", json={})
     assert response.status_code == 400
     assert response.json == {"error": "No request provided"}
 
 
+# Keep the existing test as it's already correct
 def test_optimize_prompt_empty_request(client):
     response = client.post("/api/optimize-prompt", json={"request": ""})
     assert response.status_code == 400
     assert response.json == {"error": "No request provided"}
 
 
-def test_optimize_prompt_provider_error(client, mock_provider):
+def test_optimize_prompt_provider_error(client, mock_providers):
     """Test provider error handling"""
+    # Unpack the mock provider and registry
+    mock_provider, mock_registry = mock_providers
     mock_provider.generate_content.side_effect = Exception("API Error")
     
-    response = client.post(
-        "/api/optimize-prompt",
-        json={"request": "Test error", "provider": "google"}
-    )
-    
-    assert response.status_code == 500
-    assert "API Error" in response.json["error"]
+    with patch.dict(os.environ, {"GOOGLE_API_KEY": "test_api_key"}):
+        response = client.post(
+            "/api/optimize-prompt",
+            json={"request": "Test error", "provider": "google"}
+        )
+        
+        assert response.status_code == 500
+        assert "API Error" in response.json["error"]
 
 
 # PEA Tests
